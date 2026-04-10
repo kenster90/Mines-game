@@ -21,7 +21,7 @@ To host your own version of this project:
    
    ```
  2. **Configure Firebase:**
-   * Create a project at Firebase Console.
+   * Create a project at the Firebase Console.
    * Enable **Email/Password Authentication**.
    * Create a **Firestore Database**.
    * Copy your config object into the firebaseConfig block in index.html.
@@ -35,7 +35,7 @@ The game ensures transparency using a cryptographic commitment:
 > **Note:** This implementation uses integer-cent math to prevent the floating-point rounding errors common in many web-based gambling clones.
 > 
 ## 📜 License
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License.
 ### 🔗 Quick Links
  * **Live Site:** kenster90.github.io/Mines-game
  * **Report Bug:** GitHub Issues
