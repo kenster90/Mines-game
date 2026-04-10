@@ -6,6 +6,7 @@
 <title>MINES</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 
+<!-- Firebase -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
   import {
@@ -226,6 +227,12 @@
   .overlay-title{font-family:'Bebas Neue',sans-serif;font-size:42px;letter-spacing:5px;}
   .overlay-sub{font-size:13px;color:var(--muted);letter-spacing:2px;}
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  .dismiss-hint{display:none;position:absolute;bottom:12px;left:50%;
+    transform:translateX(-50%);font-size:10px;letter-spacing:2px;color:var(--muted);
+    background:rgba(10,10,15,0.7);padding:6px 14px;border-radius:20px;
+    border:1px solid var(--border);white-space:nowrap;pointer-events:none;
+    animation:pulse 1.4s ease-in-out infinite;z-index:11;}
+  .dismiss-hint.show{display:block;}
 
   .toast{position:fixed;top:30px;left:50%;transform:translateX(-50%) translateY(-80px);
     background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 26px;
@@ -322,7 +329,7 @@
     <div>
       <div class="panel-label">Mines — <span id="mineCountLabel" style="color:var(--danger)">3</span></div>
       <div class="mines-slider-row">
-        <input type="range" id="mineSlider" min="1" max="20" value="3" oninput="updateMineCount(this.value)">
+        <input type="range" id="mineSlider" min="1" max="24" value="3" oninput="updateMineCount(this.value)">
         <div class="mines-count" id="mineCountDisp">3</div>
       </div>
       <div class="mines-hint">More mines = higher multiplier</div>
@@ -347,8 +354,9 @@
       <div class="stat-card"><div class="s-label">Mines</div>    <div class="s-value red"   id="minesLeft">—</div></div>
       <div class="stat-card"><div class="s-label">Cash Out</div> <div class="s-value gold"  id="cashoutAmt">—</div></div>
     </div>
-    <div class="grid-container">
+    <div class="grid-container" id="gridContainer">
       <div class="grid" id="grid"></div>
+      <div class="dismiss-hint" id="dismissHint">CLICK ANYWHERE TO CONTINUE</div>
       <div class="overlay show" id="overlay">
         <div class="overlay-title" id="overlayTitle" style="color:var(--accent)">MINES</div>
         <div class="overlay-sub"   id="overlaySub">Set your bet and hit start</div>
@@ -677,6 +685,12 @@ async function endGame(won, amount = 0) {
   const title = document.getElementById('overlayTitle');
   const sub   = document.getElementById('overlaySub');
 
+  document.getElementById('minesLeft').textContent  = '—';
+  document.getElementById('cashoutAmt').textContent = '—';
+  document.getElementById('gemsFound').textContent  = '—';
+  document.getElementById('multValue').textContent  = '1.00×';
+  document.getElementById('profitAmt').textContent  = '+0.00';
+
   if (won) {
     const m = calcMult(gemsRevealedCount, currentMines);
     title.textContent = '+ ' + fmt(amount);
@@ -684,21 +698,38 @@ async function endGame(won, amount = 0) {
     sub.textContent   = m.toFixed(2) + '× — ' + gemsRevealedCount + ' gem' + (gemsRevealedCount !== 1 ? 's' : '') + ' found';
     showToast('CASHED OUT  ◈' + fmt(amount), 'win');
     addHistoryBadge(true, amount);
-    setTimeout(() => document.getElementById('overlay').classList.add('show'), 0);
+    // Win: show overlay immediately (mines are dimmed in cashout mode)
+    setTimeout(() => document.getElementById('overlay').classList.add('show'), 400);
   } else {
-    title.textContent = 'BOOM!';
-    title.style.color = 'var(--danger)';
-    sub.textContent   = currentMines + ' mine' + (currentMines !== 1 ? 's' : '') + ' revealed below';
+    // Loss: DON'T show overlay — let player study the board.
+    // Show a pulsing hint and attach a one-time click-to-dismiss handler.
     showToast('MINE HIT  −◈' + fmt(currentBet), 'lose');
     addHistoryBadge(false, currentBet);
-    setTimeout(() => document.getElementById('overlay').classList.add('show'), 1200);
-  }
+    title.textContent = 'BOOM!';
+    title.style.color = 'var(--danger)';
+    sub.textContent   = currentMines + ' mine' + (currentMines !== 1 ? 's' : '') + ' — click anywhere to continue';
 
-  document.getElementById('minesLeft').textContent  = '—';
-  document.getElementById('cashoutAmt').textContent = '—';
-  document.getElementById('gemsFound').textContent  = '—';
-  document.getElementById('multValue').textContent  = '1.00×';
-  document.getElementById('profitAmt').textContent  = '+0.00';
+    // Show the hint label after the cascade animation finishes
+    const hint = document.getElementById('dismissHint');
+    setTimeout(() => hint.classList.add('show'), 900);
+
+    // One-time click anywhere on the grid container dismisses the board
+    const gc = document.getElementById('gridContainer');
+    function onDismiss() {
+      gc.removeEventListener('click', onDismiss);
+      hint.classList.remove('show');
+      // Reset grid to idle state so Start Game works cleanly
+      mineIndices = null;
+      revealedCells.clear();
+      revealedIsMine.clear();
+      renderGrid('normal');
+      document.getElementById('overlay').classList.add('show');
+      document.getElementById('overlayTitle').textContent = 'MINES';
+      document.getElementById('overlayTitle').style.color = 'var(--accent)';
+      document.getElementById('overlaySub').textContent   = 'Set your bet and hit start';
+    }
+    setTimeout(() => gc.addEventListener('click', onDismiss), 950);
+  }
 
   if (currentUser) {
     currentUser.gamesPlayed = (currentUser.gamesPlayed || 0) + 1;
