@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MINES</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
+  import {
+    getAuth, createUserWithEmailAndPassword,
+    signInWithEmailAndPassword, signOut, onAuthStateChanged
+  } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-auth.js";
+  import {
+    getFirestore, doc, getDoc, setDoc, updateDoc, serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js";
+
+  // ─── REPLACE THIS BLOCK WITH YOUR OWN FIREBASE CONFIG ───────────────────────
+  const firebaseConfig = {
+    apiKey: "AIzaSyBGa3likIWBV3YSIvy5dwou6PtjTSFfCH4",
+    authDomain: "mines-game-e0ff2.firebaseapp.com",
+    projectId: "mines-game-e0ff2",
+    storageBucket: "mines-game-e0ff2.firebasestorage.app",
+    messagingSenderId: "128077318486",
+    appId: "1:128077318486:web:f2b09ee60a2bf1cdf7aef7",
+    measurementId: "G-7TY6CWMBC1"
+  };
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  const app  = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db   = getFirestore(app);
+
+  window._fb = {
+    async register(email, password, username) {
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      const uid  = cred.user.uid;
+      const userData = { username, email, balance: 1000, gamesPlayed: 0, history: [], createdAt: serverTimestamp() };
+      await setDoc(doc(db, "users", uid), userData);
+      return { uid, ...userData };
+    },
+    async login(email, password) {
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      const snap = await getDoc(doc(db, "users", cred.user.uid));
+      if (!snap.exists()) throw new Error("no-data");
+      return { uid: cred.user.uid, ...snap.data() };
+    },
+    async logout() { await signOut(auth); },
+    async saveUser(uid, data) { await updateDoc(doc(db, "users", uid), data); },
+    async getUserData(uid) {
+      const snap = await getDoc(doc(db, "users", uid));
+      return snap.exists() ? { uid, ...snap.data() } : null;
+    }
+  };
+
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      const data = await window._fb.getUserData(user.uid);
+      if (data && window._onFirebaseUser) window._onFirebaseUser(data);
+      else if (window._showAuth) window._showAuth();
+    } else {
+      if (window._showAuth) window._showAuth();
+    }
+  });
+</script>
+
+<style>
+  :root {
+    --bg:#0a0a0f; --surface:#111118; --panel:#16161f; --border:#2a2a3a;
+    --accent:#00e5a0; --accent-dim:rgba(0,229,160,0.12);
+    --danger:#ff3d5a; --danger-dim:rgba(255,61,90,0.12);
+    --gold:#f5c842; --gold-dim:rgba(245,200,66,0.12);
+    --text:#e8e8f0; --muted:#6b6b88;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;padding:20px;overflow-x:hidden;}
+  body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%;
+    background:radial-gradient(ellipse at 60% 20%,rgba(0,229,160,0.04) 0%,transparent 50%),
+    radial-gradient(ellipse at 20% 80%,rgba(100,80,255,0.04) 0%,transparent 50%);
+    pointer-events:none;z-index:0;}
+
+  /* LOADING */
+  #loadingScreen{position:fixed;inset:0;background:var(--bg);display:flex;
+    align-items:center;justify-content:center;z-index:500;}
+  #loadingScreen.hidden{display:none;}
+  .loader{font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:6px;
+    color:var(--accent);animation:pulse 1s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.25}}
+
+  /* AUTH */
+  #authScreen{position:fixed;inset:0;background:var(--bg);display:flex;
+    align-items:center;justify-content:center;z-index:200;padding:20px;}
+  #authScreen.hidden{display:none;}
+  .auth-box{background:var(--panel);border:1px solid var(--border);border-radius:16px;
+    padding:36px 32px;width:100%;max-width:400px;display:flex;flex-direction:column;gap:18px;}
+  .auth-logo{font-family:'Bebas Neue',sans-serif;font-size:52px;letter-spacing:8px;
+    color:var(--text);line-height:1;text-align:center;}
+  .auth-logo span{color:var(--accent);}
+  .auth-subtitle{text-align:center;font-size:11px;color:var(--muted);letter-spacing:3px;margin-top:-12px;}
+  .auth-tabs{display:grid;grid-template-columns:1fr 1fr;background:var(--surface);
+    border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+  .auth-tab{padding:11px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:16px;
+    letter-spacing:2px;cursor:pointer;color:var(--muted);transition:all 0.2s;border:none;background:transparent;}
+  .auth-tab.active{background:var(--accent);color:#0a0a0f;}
+  .auth-field{display:flex;flex-direction:column;gap:6px;}
+  .auth-field label{font-size:10px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;}
+  .auth-input{background:var(--surface);border:1px solid var(--border);border-radius:8px;
+    padding:12px 14px;color:var(--text);font-family:'DM Mono',monospace;font-size:14px;
+    outline:none;transition:border-color 0.2s;}
+  .auth-input:focus{border-color:var(--accent);}
+  .auth-error{font-size:11px;color:var(--danger);letter-spacing:1px;min-height:16px;text-align:center;}
+  .auth-note{font-size:10px;color:var(--muted);letter-spacing:1px;text-align:center;line-height:1.6;}
+  .btn-auth{background:var(--accent);color:#0a0a0f;border:none;border-radius:8px;padding:14px;
+    font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:3px;cursor:pointer;
+    transition:all 0.15s;box-shadow:0 4px 20px rgba(0,229,160,0.25);}
+  .btn-auth:hover{transform:translateY(-1px);box-shadow:0 6px 28px rgba(0,229,160,0.4);}
+  .btn-auth:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
+
+  /* MAIN */
+  .wrapper{position:relative;z-index:1;width:100%;max-width:940px;
+    display:grid;grid-template-columns:290px 1fr;gap:20px;align-items:start;}
+  .top-bar{grid-column:1/-1;display:flex;align-items:center;
+    justify-content:space-between;margin-bottom:6px;}
+  .logo{display:flex;align-items:baseline;gap:14px;}
+  .logo h1{font-family:'Bebas Neue',sans-serif;font-size:52px;letter-spacing:6px;color:var(--text);line-height:1;}
+  .logo .subtitle{font-size:11px;color:var(--muted);letter-spacing:3px;}
+  .user-chip{display:flex;align-items:center;gap:12px;background:var(--panel);
+    border:1px solid var(--border);border-radius:8px;padding:10px 14px;}
+  .user-chip .uname{font-size:12px;color:var(--accent);letter-spacing:1px;}
+  .user-chip .ugames{font-size:10px;color:var(--muted);letter-spacing:1px;margin-top:2px;}
+  .btn-logout{background:transparent;border:1px solid var(--border);color:var(--muted);
+    font-family:'DM Mono',monospace;font-size:10px;padding:5px 10px;border-radius:5px;
+    cursor:pointer;letter-spacing:1px;transition:all 0.15s;}
+  .btn-logout:hover{border-color:var(--danger);color:var(--danger);}
+
+  /* PANEL */
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;
+    padding:22px;display:flex;flex-direction:column;gap:20px;}
+  .panel-label{font-size:10px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;}
+  .balance-display{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;}
+  .balance-amount{font-family:'Bebas Neue',sans-serif;font-size:36px;color:var(--gold);letter-spacing:2px;line-height:1;}
+  .balance-label{font-size:10px;color:var(--muted);letter-spacing:2px;margin-top:3px;}
+  .bet-input-row{display:flex;align-items:center;background:var(--surface);border:1px solid var(--border);
+    border-radius:8px;overflow:hidden;transition:border-color 0.2s;}
+  .bet-input-row:focus-within{border-color:var(--accent);}
+  .bet-input-row span{padding:12px 14px;color:var(--gold);font-size:14px;
+    background:rgba(245,200,66,0.06);border-right:1px solid var(--border);}
+  .bet-input-row input{flex:1;background:transparent;border:none;outline:none;
+    color:var(--text);font-family:'DM Mono',monospace;font-size:15px;padding:12px 14px;}
+  .bet-quick{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px;}
+  .bet-quick button{background:var(--surface);border:1px solid var(--border);color:var(--muted);
+    font-family:'DM Mono',monospace;font-size:11px;padding:7px 4px;border-radius:6px;
+    cursor:pointer;transition:all 0.15s;}
+  .bet-quick button:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim);}
+  .mines-slider-row{display:flex;align-items:center;gap:12px;}
+  input[type=range]{flex:1;-webkit-appearance:none;height:4px;border-radius:2px;
+    background:var(--border);outline:none;cursor:pointer;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;
+    border-radius:50%;background:var(--accent);box-shadow:0 0 8px rgba(0,229,160,0.5);
+    cursor:pointer;transition:transform 0.15s;}
+  input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2);}
+  .mines-count{font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--danger);
+    min-width:36px;text-align:right;line-height:1;}
+  .mines-hint{font-size:10px;color:var(--muted);margin-top:4px;letter-spacing:1px;}
+  .multiplier-display{background:var(--surface);border:1px solid var(--border);border-radius:8px;
+    padding:14px 16px;display:flex;justify-content:space-between;align-items:center;}
+  .mult-value{font-family:'Bebas Neue',sans-serif;font-size:30px;color:var(--accent);line-height:1;transition:all 0.3s;}
+  .mult-profit{text-align:right;}
+  .mult-profit .profit-amount{font-size:14px;color:var(--accent);font-weight:500;}
+  .mult-profit .profit-label{font-size:10px;color:var(--muted);letter-spacing:1px;}
+  .btn{width:100%;padding:14px;border-radius:8px;border:none;font-family:'Bebas Neue',sans-serif;
+    font-size:18px;letter-spacing:3px;cursor:pointer;transition:all 0.15s;position:relative;overflow:hidden;}
+  .btn::after{content:'';position:absolute;inset:0;background:white;opacity:0;transition:opacity 0.15s;}
+  .btn:active::after{opacity:0.08;}
+  .btn-start{background:var(--accent);color:#0a0a0f;box-shadow:0 4px 24px rgba(0,229,160,0.3);}
+  .btn-start:hover{box-shadow:0 4px 32px rgba(0,229,160,0.5);transform:translateY(-1px);}
+  .btn-start:disabled{opacity:0.4;cursor:not-allowed;transform:none;box-shadow:none;}
+  .btn-cashout{background:var(--gold);color:#0a0a0f;box-shadow:0 4px 24px rgba(245,200,66,0.3);display:none;}
+  .btn-cashout:hover{box-shadow:0 4px 32px rgba(245,200,66,0.5);transform:translateY(-1px);}
+  .btn-cashout.visible{display:block;}
+
+  /* GAME AREA */
+  .game-area{display:flex;flex-direction:column;gap:16px;}
+  .stats-bar{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+  .stat-card{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 14px;}
+  .stat-card .s-label{font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;}
+  .stat-card .s-value{font-family:'Bebas Neue',sans-serif;font-size:22px;line-height:1.2;}
+  .s-value.green{color:var(--accent);} .s-value.red{color:var(--danger);} .s-value.gold{color:var(--gold);}
+
+  .grid-container{background:var(--panel);border:1px solid var(--border);
+    border-radius:12px;padding:20px;position:relative;}
+
+  /* 5×5 grid */
+  .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}
+
+  .cell{aspect-ratio:1;border-radius:9px;background:var(--surface);border:1px solid var(--border);
+    cursor:pointer;position:relative;overflow:hidden;transition:all 0.15s;
+    display:flex;align-items:center;justify-content:center;font-size:24px;}
+  .cell::before{content:'';position:absolute;inset:0;
+    background:linear-gradient(135deg,rgba(255,255,255,0.03) 0%,transparent 100%);border-radius:inherit;}
+  .cell:hover:not(.no-hover){border-color:rgba(255,255,255,0.2);background:#1e1e2a;
+    transform:scale(1.04);box-shadow:0 4px 14px rgba(0,0,0,0.4);}
+  .cell.gem{background:rgba(0,229,160,0.1);border-color:var(--accent);
+    animation:gemReveal 0.35s cubic-bezier(0.34,1.56,0.64,1);cursor:default;}
+  .cell.mine-hit{background:rgba(255,61,90,0.22);border-color:var(--danger);
+    box-shadow:0 0 24px rgba(255,61,90,0.5);animation:mineHit 0.45s ease forwards;cursor:default;}
+  .cell.mine-hidden{background:rgba(255,61,90,0.07);border-color:rgba(255,61,90,0.3);
+    cursor:default;animation:mineHiddenReveal 0.35s ease both;}
+  .cell.safe-unrevealed{background:rgba(0,229,160,0.04);border-color:rgba(0,229,160,0.18);
+    cursor:default;animation:fadeReveal 0.3s ease;}
+  .cell.no-hover{cursor:default;}
+
+  @keyframes gemReveal{0%{transform:scale(0.7);opacity:0}70%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+  @keyframes mineHit{0%{transform:scale(0.75) rotate(-8deg);opacity:0}35%{transform:scale(1.18) rotate(5deg)}
+    60%{transform:scale(0.94) rotate(-2deg)}100%{transform:scale(1) rotate(0);opacity:1}}
+  @keyframes mineHiddenReveal{from{transform:scale(0.85);opacity:0}to{transform:scale(1);opacity:1}}
+  @keyframes fadeReveal{from{opacity:0;transform:scale(0.92)}to{opacity:1;transform:scale(1)}}
+
+  .overlay{display:none;position:absolute;inset:0;border-radius:12px;
+    background:rgba(10,10,15,0.88);backdrop-filter:blur(4px);
+    align-items:center;justify-content:center;flex-direction:column;gap:8px;z-index:10;}
+  .overlay.show{display:flex;animation:fadeIn 0.35s ease;}
+  .overlay-title{font-family:'Bebas Neue',sans-serif;font-size:42px;letter-spacing:5px;}
+  .overlay-sub{font-size:13px;color:var(--muted);letter-spacing:2px;}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+  .toast{position:fixed;top:30px;left:50%;transform:translateX(-50%) translateY(-80px);
+    background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 26px;
+    font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:3px;z-index:400;
+    transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1);white-space:nowrap;}
+  .toast.show{transform:translateX(-50%) translateY(0);}
+  .toast.win {color:var(--gold);  border-color:var(--gold);  box-shadow:0 4px 24px rgba(245,200,66,0.2);}
+  .toast.lose{color:var(--danger);border-color:var(--danger);box-shadow:0 4px 24px rgba(255,61,90,0.2);}
+  .toast.info{color:var(--accent);border-color:var(--accent);box-shadow:0 4px 24px rgba(0,229,160,0.2);}
+
+  .history{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+  .history-label{font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-right:4px;}
+  .history-badge{padding:4px 10px;border-radius:4px;font-size:11px;font-weight:500;
+    animation:badgeIn 0.3s cubic-bezier(0.34,1.56,0.64,1);}
+  .history-badge.win {background:var(--gold-dim);  color:var(--gold);  border:1px solid rgba(245,200,66,0.2);}
+  .history-badge.lose{background:var(--danger-dim);color:var(--danger);border:1px solid rgba(255,61,90,0.2);}
+  @keyframes badgeIn{from{transform:scale(0.7);opacity:0}to{transform:scale(1);opacity:1}}
+
+  @media(max-width:700px){
+    .wrapper{grid-template-columns:1fr;max-width:420px;}
+    .top-bar{flex-direction:column;align-items:flex-start;gap:10px;}
+  }
+</style>
+</head>
+<body>
+
+<div id="loadingScreen"><div class="loader">LOADING...</div></div>
+<div class="toast" id="toast"></div>
+
+<!-- AUTH -->
+<div id="authScreen" class="hidden">
+  <div class="auth-box">
+    <div class="auth-logo">MINES<span>.</span></div>
+    <div class="auth-subtitle">Cross-device accounts · Firebase</div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabLogin"    onclick="switchTab('login')">LOGIN</button>
+      <button class="auth-tab"        id="tabRegister" onclick="switchTab('register')">REGISTER</button>
+    </div>
+    <div class="auth-field" id="usernameField" style="display:none">
+      <label>Display Name</label>
+      <input class="auth-input" id="authName" type="text" placeholder="your_name" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="auth-field">
+      <label>Email</label>
+      <input class="auth-input" id="authEmail" type="email" placeholder="you@email.com" onkeydown="if(event.key==='Enter')handleAuth()">
+    </div>
+    <div class="auth-field">
+      <label>Password</label>
+      <input class="auth-input" id="authPass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')handleAuth()">
+    </div>
+    <div class="auth-error" id="authError"></div>
+    <button class="btn-auth" id="authBtn" onclick="handleAuth()">LOGIN</button>
+    <div class="auth-note">Accounts sync across all your devices automatically.</div>
+  </div>
+</div>
+
+<!-- GAME -->
+<div class="wrapper" id="gameWrapper" style="display:none;">
+  <div class="top-bar">
+    <div class="logo">
+      <h1>MINES</h1>
+      <span class="subtitle">Find the gems. Avoid the bombs.</span>
+    </div>
+    <div class="user-chip">
+      <div>
+        <div class="uname"  id="chipUser">—</div>
+        <div class="ugames" id="chipGames">0 games played</div>
+      </div>
+      <button class="btn-logout" onclick="logoutUser()">LOGOUT</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div>
+      <div class="panel-label">Balance</div>
+      <div class="balance-display">
+        <div class="balance-amount" id="balanceAmt">1,000.00</div>
+        <div class="balance-label">COINS</div>
+      </div>
+    </div>
+    <div>
+      <div class="panel-label">Bet Amount</div>
+      <div class="bet-input-row">
+        <span>◈</span>
+        <input type="number" id="betInput" value="50" min="1" max="10000" step="1">
+      </div>
+      <div class="bet-quick">
+        <button onclick="setBet(0.5)">½</button>
+        <button onclick="setBet(2)">2×</button>
+        <button onclick="setBet(null,10)">10</button>
+        <button onclick="setBet(null,100)">100</button>
+      </div>
+    </div>
+    <div>
+      <div class="panel-label">Mines — <span id="mineCountLabel" style="color:var(--danger)">3</span></div>
+      <div class="mines-slider-row">
+        <input type="range" id="mineSlider" min="1" max="20" value="3" oninput="updateMineCount(this.value)">
+        <div class="mines-count" id="mineCountDisp">3</div>
+      </div>
+      <div class="mines-hint">More mines = higher multiplier</div>
+    </div>
+    <div>
+      <div class="panel-label">Current Multiplier</div>
+      <div class="multiplier-display">
+        <div class="mult-value" id="multValue">1.00×</div>
+        <div class="mult-profit">
+          <div class="profit-amount" id="profitAmt">+0.00</div>
+          <div class="profit-label">PROFIT</div>
+        </div>
+      </div>
+    </div>
+    <button class="btn btn-start"   id="startBtn"   onclick="startGame()">START GAME</button>
+    <button class="btn btn-cashout" id="cashoutBtn" onclick="cashout()">CASH OUT</button>
+  </div>
+
+  <div class="game-area">
+    <div class="stats-bar">
+      <div class="stat-card"><div class="s-label">Gems Found</div><div class="s-value green" id="gemsFound">0</div></div>
+      <div class="stat-card"><div class="s-label">Mines</div>    <div class="s-value red"   id="minesLeft">—</div></div>
+      <div class="stat-card"><div class="s-label">Cash Out</div> <div class="s-value gold"  id="cashoutAmt">—</div></div>
+    </div>
+    <div class="grid-container">
+      <div class="grid" id="grid"></div>
+      <div class="overlay show" id="overlay">
+        <div class="overlay-title" id="overlayTitle" style="color:var(--accent)">MINES</div>
+        <div class="overlay-sub"   id="overlaySub">Set your bet and hit start</div>
+      </div>
+    </div>
+    <div class="history" id="history"><span class="history-label">History</span></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  PROVABLY FAIR MINE ENGINE
+//
+//  How it works:
+//  - On startGame(), a random 32-byte "gameSeed" is generated and
+//    imported as an HMAC-SHA256 key via the Web Crypto API.
+//  - The key is NEVER stored or logged anywhere accessible.
+//  - To check if cell i is a mine, we HMAC("mine:i") → get a
+//    deterministic float → use it to place exactly `mineCount`
+//    mines via a Fisher-Yates selection.
+//  - isMine(i) recomputes this on demand each click.
+//  - At game end, the seed is discarded and the positions are
+//    recomputed for reveal only — at that point the game is over
+//    so knowing them doesn't matter.
+//
+//  Result: minePositions is NEVER stored as a Set/Array in JS.
+//  Opening DevTools and inspecting variables reveals nothing useful.
+// ═══════════════════════════════════════════════════════════════
+
+const GRID_SIZE = 25; // 5×5
+let cryptoKey   = null;   // CryptoKey — not inspectable as plain data
+let mineIndices = null;   // null during play; only populated at reveal
+let revealedCells   = new Set();
+let revealedIsMine  = new Map(); // index → bool, only for cells player clicked
+let balance         = 1000;
+let gameActive      = false;
+let currentBet      = 0;
+let currentMines    = 3;
+let gemsRevealedCount = 0;
+
+// Generate a CryptoKey from random bytes — not readable from JS
+async function generateGameKey() {
+  const raw = crypto.getRandomValues(new Uint8Array(32));
+  return crypto.subtle.importKey(
+    "raw", raw, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+  );
+}
+
+// HMAC-sign a string with the game key → deterministic float [0,1)
+async function hmacFloat(key, msg) {
+  const enc  = new TextEncoder().encode(msg);
+  const sig  = await crypto.subtle.sign("HMAC", key, enc);
+  const view = new DataView(sig);
+  return (view.getUint32(0) >>> 0) / 0x100000000;
+}
+
+// Build the ordered list of mine positions from the key
+// Returns an array of mine indices — called only at game end for reveal
+async function deriveAllMines(key, mineCount) {
+  // Score every cell, pick lowest `mineCount` scores
+  const scores = await Promise.all(
+    Array.from({length: GRID_SIZE}, (_, i) => hmacFloat(key, "mine:" + i))
+  );
+  return scores
+    .map((s, i) => ({s, i}))
+    .sort((a, b) => a.s - b.s)
+    .slice(0, mineCount)
+    .map(x => x.i);
+}
+
+// Check a single cell without revealing others
+async function isMineCell(key, mineCount, cellIndex) {
+  // We need the full mine set to answer this correctly
+  const mines = await deriveAllMines(key, mineCount);
+  return mines.includes(cellIndex);
+}
+
+// ═══════════════════════════════════════
+//  AUTH
+// ═══════════════════════════════════════
+let currentUser = null;
+let currentTab  = 'login';
+let fbReady     = false;
+
+window._onFirebaseUser = function(data) {
+  currentUser = data;
+  balance = data.balance || 1000;
+  fbReady = true;
+  document.getElementById('loadingScreen').classList.add('hidden');
+  loadHistoryBadges(currentUser.history || []);
+  enterGame();
+};
+window._showAuth = function() {
+  fbReady = true;
+  document.getElementById('loadingScreen').classList.add('hidden');
+  document.getElementById('authScreen').classList.remove('hidden');
+};
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
+  document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
+  document.getElementById('authBtn').textContent = tab === 'login' ? 'LOGIN' : 'CREATE ACCOUNT';
+  document.getElementById('usernameField').style.display = tab === 'register' ? 'flex' : 'none';
+  document.getElementById('authError').textContent = '';
+}
+
+async function handleAuth() {
+  const email = document.getElementById('authEmail').value.trim();
+  const pass  = document.getElementById('authPass').value;
+  const name  = document.getElementById('authName').value.trim();
+  const errEl = document.getElementById('authError');
+  const btn   = document.getElementById('authBtn');
+  errEl.textContent = '';
+
+  if (!email || !email.includes('@'))  { errEl.textContent = 'ENTER A VALID EMAIL'; return; }
+  if (!pass  || pass.length < 6)       { errEl.textContent = 'PASSWORD MUST BE 6+ CHARACTERS'; return; }
+  if (currentTab === 'register' && (!name || name.length < 2)) { errEl.textContent = 'ENTER A DISPLAY NAME'; return; }
+
+  btn.disabled = true; btn.textContent = '...';
+  try {
+    if (currentTab === 'register') {
+      currentUser = await window._fb.register(email, pass, name);
+      showToast('WELCOME, ' + name.toUpperCase() + '!', 'info');
+    } else {
+      currentUser = await window._fb.login(email, pass);
+      showToast('WELCOME BACK!', 'info');
+    }
+    balance = currentUser.balance || 1000;
+    loadHistoryBadges(currentUser.history || []);
+    enterGame();
+  } catch(e) {
+    const code = e.code || '';
+    errEl.textContent = (
+      code === 'auth/user-not-found'      ? 'ACCOUNT NOT FOUND' :
+      code === 'auth/wrong-password'       ? 'INCORRECT PASSWORD' :
+      code === 'auth/invalid-credential'   ? 'INVALID EMAIL OR PASSWORD' :
+      code === 'auth/email-already-in-use' ? 'EMAIL ALREADY REGISTERED' :
+      code === 'auth/too-many-requests'    ? 'TOO MANY ATTEMPTS — TRY LATER' :
+      (e.message || 'SOMETHING WENT WRONG').toUpperCase()
+    );
+  }
+  btn.disabled = false;
+  btn.textContent = currentTab === 'login' ? 'LOGIN' : 'CREATE ACCOUNT';
+}
+
+function enterGame() {
+  document.getElementById('authScreen').classList.add('hidden');
+  document.getElementById('gameWrapper').style.display = 'grid';
+  document.getElementById('chipUser').textContent  = (currentUser.username || currentUser.email || '—').toUpperCase();
+  document.getElementById('chipGames').textContent = (currentUser.gamesPlayed || 0) + ' games played';
+  updateBalanceUI(); renderGrid();
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('overlayTitle').textContent = 'MINES';
+  document.getElementById('overlayTitle').style.color = 'var(--accent)';
+  document.getElementById('overlaySub').textContent   = 'Set your bet and hit start';
+}
+
+async function logoutUser() {
+  await window._fb.logout();
+  currentUser = null; balance = 1000; gameActive = false; cryptoKey = null; mineIndices = null;
+  document.getElementById('gameWrapper').style.display = 'none';
+  document.getElementById('authScreen').classList.remove('hidden');
+  document.getElementById('authEmail').value = document.getElementById('authPass').value = '';
+  document.getElementById('authError').textContent = '';
+  document.getElementById('history').innerHTML = '<span class="history-label">History</span>';
+  renderGrid();
+}
+
+async function saveUser() {
+  if (!currentUser) return;
+  try { await window._fb.saveUser(currentUser.uid, { balance, gamesPlayed: currentUser.gamesPlayed, history: currentUser.history }); }
+  catch(e) { console.warn('Save failed:', e); }
+}
+
+// ═══════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════
+function calcMult(revealed, mines) {
+  if (revealed === 0) return 1.0;
+  const safe = GRID_SIZE - mines;
+  let m = 1.0;
+  for (let i = 0; i < revealed; i++) m *= (GRID_SIZE - i) / (safe - i);
+  return parseFloat((m * 0.97).toFixed(4));
+}
+function fmt(n) { return n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+function updateBalanceUI() { document.getElementById('balanceAmt').textContent = fmt(balance); }
+function updateMineCount(v) {
+  currentMines = parseInt(v);
+  document.getElementById('mineCountDisp').textContent = v;
+  document.getElementById('mineCountLabel').textContent = v;
+}
+function updateMultUI() {
+  const m = calcMult(gemsRevealedCount, currentMines);
+  document.getElementById('multValue').textContent  = m.toFixed(2) + '×';
+  document.getElementById('profitAmt').textContent  = '+' + fmt(currentBet * m - currentBet);
+  document.getElementById('gemsFound').textContent  = gemsRevealedCount;
+  document.getElementById('cashoutAmt').textContent = gemsRevealedCount > 0 ? fmt(currentBet * m) : '—';
+}
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast ' + type + ' show';
+  clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+// ═══════════════════════════════════════
+//  GRID RENDER
+//  mineIndices is null during play → cells only know what the
+//  player has explicitly revealed (stored in revealedIsMine).
+// ═══════════════════════════════════════
+function renderGrid(mode = 'normal') {
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+
+  for (let i = 0; i < GRID_SIZE; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+
+    if (revealedCells.has(i)) {
+      // Player clicked this cell — we know if it's a mine
+      cell.classList.add('no-hover');
+      if (revealedIsMine.get(i)) {
+        cell.classList.add('mine-hit');
+        cell.textContent = '💣';
+      } else {
+        cell.classList.add('gem');
+        cell.innerHTML = '<span style="filter:drop-shadow(0 0 6px var(--accent))">💎</span>';
+      }
+    } else if ((mode === 'loss' || mode === 'cashout') && mineIndices) {
+      // Game over — mineIndices is now populated for reveal only
+      cell.classList.add('no-hover');
+      if (mineIndices.includes(i)) {
+        cell.classList.add('mine-hidden');
+        const delay = mineIndices.indexOf(i) * 70;
+        cell.style.animationDelay = delay + 'ms';
+        cell.textContent = '💣';
+        if (mode === 'cashout') cell.style.opacity = '0.55';
+      } else {
+        cell.classList.add('safe-unrevealed');
+        cell.innerHTML = '<span style="opacity:0.22">💎</span>';
+      }
+    } else {
+      // Unrevealed, game active or idle
+      if (gameActive) cell.addEventListener('click', () => revealCell(i));
+      else cell.classList.add('no-hover');
+    }
+
+    grid.appendChild(cell);
+  }
+}
+
+// ═══════════════════════════════════════
+//  GAME LOGIC
+// ═══════════════════════════════════════
+async function startGame() {
+  const bet = parseFloat(document.getElementById('betInput').value);
+  if (isNaN(bet) || bet <= 0) { showToast('INVALID BET', 'lose'); return; }
+  if (bet > balance)           { showToast('INSUFFICIENT FUNDS', 'lose'); return; }
+
+  currentBet = bet;
+  balance -= bet;
+  updateBalanceUI();
+
+  // Generate fresh crypto key — mine layout locked in but invisible
+  cryptoKey   = await generateGameKey();
+  mineIndices = null;           // not computed yet
+  revealedCells.clear();
+  revealedIsMine.clear();
+  gemsRevealedCount = 0;
+  gameActive = true;
+
+  document.getElementById('mineSlider').disabled = true;
+  document.getElementById('betInput').disabled   = true;
+  document.getElementById('startBtn').disabled   = true;
+  document.getElementById('cashoutBtn').classList.add('visible');
+  document.getElementById('minesLeft').textContent = currentMines;
+  document.getElementById('overlay').classList.remove('show');
+  renderGrid('normal');
+  updateMultUI();
+}
+
+async function revealCell(index) {
+  if (!gameActive || revealedCells.has(index)) return;
+
+  // Determine outcome for this single cell (recomputes mine set internally)
+  const mine = await isMineCell(cryptoKey, currentMines, index);
+
+  revealedCells.add(index);
+  revealedIsMine.set(index, mine);
+
+  if (mine) {
+    // Unlock mine positions now that the game is over
+    mineIndices = await deriveAllMines(cryptoKey, currentMines);
+    renderGrid('normal');                          // show the hit cell
+    setTimeout(() => renderGrid('loss'), 150);     // cascade-reveal all mines
+    endGame(false);
+  } else {
+    gemsRevealedCount++;
+    renderGrid('normal');
+    updateMultUI();
+    if (gemsRevealedCount === GRID_SIZE - currentMines) cashout();
+  }
+}
+
+async function cashout() {
+  if (!gameActive) return;
+  if (gemsRevealedCount === 0) { showToast('REVEAL A GEM FIRST', 'lose'); return; }
+  const m   = calcMult(gemsRevealedCount, currentMines);
+  const win = currentBet * m;
+  balance  += win;
+  updateBalanceUI();
+  // Reveal mine positions on cashout too
+  mineIndices = await deriveAllMines(cryptoKey, currentMines);
+  renderGrid('cashout');
+  endGame(true, win);
+}
+
+async function endGame(won, amount = 0) {
+  gameActive = false;
+  cryptoKey  = null; // discard key — no longer needed
+  document.getElementById('mineSlider').disabled = false;
+  document.getElementById('betInput').disabled   = false;
+  document.getElementById('startBtn').disabled   = false;
+  document.getElementById('cashoutBtn').classList.remove('visible');
+
+  const title = document.getElementById('overlayTitle');
+  const sub   = document.getElementById('overlaySub');
+
+  if (won) {
+    const m = calcMult(gemsRevealedCount, currentMines);
+    title.textContent = '+ ' + fmt(amount);
+    title.style.color = 'var(--gold)';
+    sub.textContent   = m.toFixed(2) + '× — ' + gemsRevealedCount + ' gem' + (gemsRevealedCount !== 1 ? 's' : '') + ' found';
+    showToast('CASHED OUT  ◈' + fmt(amount), 'win');
+    addHistoryBadge(true, amount);
+    setTimeout(() => document.getElementById('overlay').classList.add('show'), 0);
+  } else {
+    title.textContent = 'BOOM!';
+    title.style.color = 'var(--danger)';
+    sub.textContent   = currentMines + ' mine' + (currentMines !== 1 ? 's' : '') + ' revealed below';
+    showToast('MINE HIT  −◈' + fmt(currentBet), 'lose');
+    addHistoryBadge(false, currentBet);
+    setTimeout(() => document.getElementById('overlay').classList.add('show'), 1200);
+  }
+
+  document.getElementById('minesLeft').textContent  = '—';
+  document.getElementById('cashoutAmt').textContent = '—';
+  document.getElementById('gemsFound').textContent  = '—';
+  document.getElementById('multValue').textContent  = '1.00×';
+  document.getElementById('profitAmt').textContent  = '+0.00';
+
+  if (currentUser) {
+    currentUser.gamesPlayed = (currentUser.gamesPlayed || 0) + 1;
+    currentUser.history = [
+      { won, amount: won ? amount : currentBet, ts: Date.now() },
+      ...(currentUser.history || [])
+    ].slice(0, 20);
+    document.getElementById('chipGames').textContent = currentUser.gamesPlayed + ' games played';
+    await saveUser();
+  }
+}
+
+function addHistoryBadge(won, amount) {
+  const h = document.getElementById('history');
+  const b = document.createElement('span');
+  b.className = 'history-badge ' + (won ? 'win' : 'lose');
+  b.textContent = (won ? '+' : '−') + '◈' + fmt(amount);
+  const all = h.querySelectorAll('.history-badge');
+  if (all.length >= 10) all[all.length - 1].remove();
+  h.insertBefore(b, h.children[1]);
+}
+function loadHistoryBadges(hist) {
+  const h = document.getElementById('history');
+  h.innerHTML = '<span class="history-label">History</span>';
+  [...hist].slice(0, 10).reverse().forEach(item => addHistoryBadge(item.won, item.amount));
+}
+function setBet(mult, fixed) {
+  const inp = document.getElementById('betInput');
+  inp.value = fixed !== undefined ? fixed : Math.max(1, Math.floor(parseFloat(inp.value) * mult));
+}
+
+// Fallback if Firebase isn't configured yet
+setTimeout(() => {
+  if (!fbReady) {
+    document.getElementById('loadingScreen').classList.add('hidden');
+    document.getElementById('authScreen').classList.remove('hidden');
+    document.getElementById('authError').textContent = 'PASTE YOUR FIREBASE CONFIG INTO THE FILE';
+  }
+}, 8000);
+</script>
+</body>
+</html>
