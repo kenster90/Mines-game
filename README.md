@@ -37,6 +37,6 @@ The game ensures transparency using a cryptographic commitment:
 ## 📜 License
 This project is licensed under the MIT License.
 ### 🔗 Quick Links
- * **Live Site:** kenster90.github.io/Mines-game
+ * **Live Site:** (kenster90.github.io/Mines-game)
  * **Report Bug:** GitHub Issues
 *Developed with ❤️ by Kenster90*
