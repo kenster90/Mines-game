@@ -6,50 +6,38 @@
 <title>MINES</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 
-<!-- Firebase -->
-
 <script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "
-https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js
-";
-  import { getAnalytics } from "
-https://www.gstatic.com/firebasejs/12.12.0/firebase-analytics.js
-";
-  // TODO: Add SDKs for Firebase products that you want to use
-  //
-https://firebase.google.com/docs/web/setup#available-libraries
-  // Your web app's Firebase configuration
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-  const firebaseConfig = {
-    apiKey: "AIzaSyBGa3likIWBV3YSIvy5dwou6PtjTSFfCH4",
-    authDomain: "mines-game-e0ff2.firebaseapp.com",
-    projectId: "mines-game-e0ff2",
-    storageBucket: "mines-game-e0ff2.firebasestorage.app",
-    messagingSenderId: "128077318486",
-    appId: "1:128077318486:web:f2b09ee60a2bf1cdf7aef7",
-    measurementId: "G-7TY6CWMBC1"
-  };
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
-</script> ─────────────────────────────────────────────────────────────────────────────
+  // 1. Correct Imports from the same version
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js";
 
-  const app       = initializeApp(firebaseConfig);
-  const auth      = getAuth(app);
-  const db        = getFirestore(app);
+  // 2. Firebase Configuration
+  const firebaseConfig = {
+    apiKey: "AIzaSyBGa3likIWBV3YSIvy5dwou6PtjTSFfCH4",
+    authDomain: "mines-game-e0ff2.firebaseapp.com",
+    projectId: "mines-game-e0ff2",
+    storageBucket: "mines-game-e0ff2.firebasestorage.app",
+    messagingSenderId: "128077318486",
+    appId: "1:128077318486:web:f2b09ee60a2bf1cdf7aef7",
+    measurementId: "G-7TY6CWMBC1"
+  };
+
+  // 3. Initialize Services
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
   const functions = getFunctions(app);
 
-  // Callable Cloud Function handles — all game money flows through these
   const _startGameFn   = httpsCallable(functions, 'startGame');
   const _resolveGameFn = httpsCallable(functions, 'resolveGame');
 
+  // 4. Attach Helper to Window
   window._fb = {
-    // ── Auth ──────────────────────────────────────────────────────────────────
     async register(email, password, username) {
       const cred = await createUserWithEmailAndPassword(auth, email, password);
       const uid  = cred.user.uid;
-      // Cloud Function creates the user doc with locked starting balance
       const result = await httpsCallable(functions, 'createUser')({ username, email });
       return { uid, ...result.data };
     },
@@ -60,36 +48,26 @@ https://firebase.google.com/docs/web/setup#available-libraries
       return { uid: cred.user.uid, ...snap.data() };
     },
     async logout() { await signOut(auth); },
-
-    // ── Read-only user data (balance written only by Cloud Functions) ─────────
     async getUserData(uid) {
       const snap = await getDoc(doc(db, "users", uid));
       return snap.exists() ? { uid, ...snap.data() } : null;
     },
-
-    // ── Non-financial user writes (history, gamesPlayed, pendingGame) ─────────
     async saveUserMeta(uid, data) {
-      // balanceCents is intentionally excluded — Firestore rules block it
       const safe = { ...data };
       delete safe.balanceCents;
       await updateDoc(doc(db, "users", uid), safe);
     },
-
-    // ── Game Cloud Function calls ─────────────────────────────────────────────
-    // Sends bet to server → gets back { gameId, seedHash } (seed stays server-side)
     async startGame(betCents, mineCount) {
       const r = await _startGameFn({ betCents, mineCount });
-      return r.data; // { gameId, seedHash, newBalanceCents }
+      return r.data;
     },
-
-    // Sends cell click or cashout → gets back outcome
-    // action: "reveal" | "cashout" | "bust"
     async resolveGame(gameId, action, cellIndex) {
       const r = await _resolveGameFn({ gameId, action, cellIndex });
-      return r.data; // { isMine, mineIndices, newBalanceCents, winCents, multiplier, done }
+      return r.data;
     }
   };
 
+  // 5. Auth Observer
   onAuthStateChanged(auth, async (user) => {
     if (user) {
       const data = await window._fb.getUserData(user.uid);
@@ -118,7 +96,7 @@ https://firebase.google.com/docs/web/setup#available-libraries
     radial-gradient(ellipse at 20% 80%,rgba(100,80,255,0.04) 0%,transparent 50%);
     pointer-events:none;z-index:0;}
 
-  /* LOADING */
+  /* UI COMPONENT STYLES */
   #loadingScreen{position:fixed;inset:0;background:var(--bg);display:flex;
     align-items:center;justify-content:center;z-index:500;}
   #loadingScreen.hidden{display:none;}
@@ -126,7 +104,6 @@ https://firebase.google.com/docs/web/setup#available-libraries
     color:var(--accent);animation:pulse 1s ease-in-out infinite;}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.25}}
 
-  /* AUTH */
   #authScreen{position:fixed;inset:0;background:var(--bg);display:flex;
     align-items:center;justify-content:center;z-index:200;padding:20px;}
   #authScreen.hidden{display:none;}
@@ -148,148 +125,42 @@ https://firebase.google.com/docs/web/setup#available-libraries
     outline:none;transition:border-color 0.2s;}
   .auth-input:focus{border-color:var(--accent);}
   .auth-error{font-size:11px;color:var(--danger);letter-spacing:1px;min-height:16px;text-align:center;}
-  .auth-note{font-size:10px;color:var(--muted);letter-spacing:1px;text-align:center;line-height:1.6;}
   .btn-auth{background:var(--accent);color:#0a0a0f;border:none;border-radius:8px;padding:14px;
     font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:3px;cursor:pointer;
     transition:all 0.15s;box-shadow:0 4px 20px rgba(0,229,160,0.25);}
-  .btn-auth:hover{transform:translateY(-1px);box-shadow:0 6px 28px rgba(0,229,160,0.4);}
-  .btn-auth:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
+  .btn-auth:disabled{opacity:0.5;cursor:not-allowed;}
 
-  /* MAIN */
   .wrapper{position:relative;z-index:1;width:100%;max-width:940px;
     display:grid;grid-template-columns:290px 1fr;gap:20px;align-items:start;}
   .top-bar{grid-column:1/-1;display:flex;align-items:center;
     justify-content:space-between;margin-bottom:6px;}
-  .logo{display:flex;align-items:baseline;gap:14px;}
   .logo h1{font-family:'Bebas Neue',sans-serif;font-size:52px;letter-spacing:6px;color:var(--text);line-height:1;}
-  .logo .subtitle{font-size:11px;color:var(--muted);letter-spacing:3px;}
   .user-chip{display:flex;align-items:center;gap:12px;background:var(--panel);
     border:1px solid var(--border);border-radius:8px;padding:10px 14px;}
-  .user-chip .uname{font-size:12px;color:var(--accent);letter-spacing:1px;}
-  .user-chip .ugames{font-size:10px;color:var(--muted);letter-spacing:1px;margin-top:2px;}
   .btn-logout{background:transparent;border:1px solid var(--border);color:var(--muted);
-    font-family:'DM Mono',monospace;font-size:10px;padding:5px 10px;border-radius:5px;
-    cursor:pointer;letter-spacing:1px;transition:all 0.15s;}
-  .btn-logout:hover{border-color:var(--danger);color:var(--danger);}
+    font-size:10px;padding:5px 10px;border-radius:5px;cursor:pointer;}
 
-  /* PANEL */
   .panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;
     padding:22px;display:flex;flex-direction:column;gap:20px;}
-  .panel-label{font-size:10px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;}
-  .balance-display{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;}
-  .balance-amount{font-family:'Bebas Neue',sans-serif;font-size:36px;color:var(--gold);letter-spacing:2px;line-height:1;}
-  .balance-label{font-size:10px;color:var(--muted);letter-spacing:2px;margin-top:3px;}
-  .bet-input-row{display:flex;align-items:center;background:var(--surface);border:1px solid var(--border);
-    border-radius:8px;overflow:hidden;transition:border-color 0.2s;}
-  .bet-input-row:focus-within{border-color:var(--accent);}
-  .bet-input-row span{padding:12px 14px;color:var(--gold);font-size:14px;
-    background:rgba(245,200,66,0.06);border-right:1px solid var(--border);}
-  .bet-input-row input{flex:1;background:transparent;border:none;outline:none;
-    color:var(--text);font-family:'DM Mono',monospace;font-size:15px;padding:12px 14px;}
-  .bet-quick{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px;}
-  .bet-quick button{background:var(--surface);border:1px solid var(--border);color:var(--muted);
-    font-family:'DM Mono',monospace;font-size:11px;padding:7px 4px;border-radius:6px;
-    cursor:pointer;transition:all 0.15s;}
-  .bet-quick button:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim);}
-  .mines-slider-row{display:flex;align-items:center;gap:12px;}
-  input[type=range]{flex:1;-webkit-appearance:none;height:4px;border-radius:2px;
-    background:var(--border);outline:none;cursor:pointer;}
-  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;
-    border-radius:50%;background:var(--accent);box-shadow:0 0 8px rgba(0,229,160,0.5);
-    cursor:pointer;transition:transform 0.15s;}
-  input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2);}
-  .mines-count{font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--danger);
-    min-width:36px;text-align:right;line-height:1;}
-  .mines-hint{font-size:10px;color:var(--muted);margin-top:4px;letter-spacing:1px;}
-  .multiplier-display{background:var(--surface);border:1px solid var(--border);border-radius:8px;
-    padding:14px 16px;display:flex;justify-content:space-between;align-items:center;}
-  .mult-value{font-family:'Bebas Neue',sans-serif;font-size:30px;color:var(--accent);line-height:1;transition:all 0.3s;}
-  .mult-profit{text-align:right;}
-  .mult-profit .profit-amount{font-size:14px;color:var(--accent);font-weight:500;}
-  .mult-profit .profit-label{font-size:10px;color:var(--muted);letter-spacing:1px;}
-  .btn{width:100%;padding:14px;border-radius:8px;border:none;font-family:'Bebas Neue',sans-serif;
-    font-size:18px;letter-spacing:3px;cursor:pointer;transition:all 0.15s;position:relative;overflow:hidden;}
-  .btn::after{content:'';position:absolute;inset:0;background:white;opacity:0;transition:opacity 0.15s;}
-  .btn:active::after{opacity:0.08;}
-  .btn-start{background:var(--accent);color:#0a0a0f;box-shadow:0 4px 24px rgba(0,229,160,0.3);}
-  .btn-start:hover{box-shadow:0 4px 32px rgba(0,229,160,0.5);transform:translateY(-1px);}
-  .btn-start:disabled{opacity:0.4;cursor:not-allowed;transform:none;box-shadow:none;}
-  .btn-cashout{background:var(--gold);color:#0a0a0f;box-shadow:0 4px 24px rgba(245,200,66,0.3);display:none;}
-  .btn-cashout:hover{box-shadow:0 4px 32px rgba(245,200,66,0.5);transform:translateY(-1px);}
-  .btn-cashout.visible{display:block;}
+  .balance-amount{font-family:'Bebas Neue',sans-serif;font-size:36px;color:var(--gold);}
+  .bet-input-row{display:flex;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+  .bet-input-row input{flex:1;background:transparent;border:none;outline:none;color:var(--text);padding:12px 14px;}
 
-  /* GAME AREA */
-  .game-area{display:flex;flex-direction:column;gap:16px;}
-  .stats-bar{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
-  .stat-card{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 14px;}
-  .stat-card .s-label{font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;}
-  .stat-card .s-value{font-family:'Bebas Neue',sans-serif;font-size:22px;line-height:1.2;}
-  .s-value.green{color:var(--accent);} .s-value.red{color:var(--danger);} .s-value.gold{color:var(--gold);}
-
-  .grid-container{background:var(--panel);border:1px solid var(--border);
-    border-radius:12px;padding:20px;position:relative;}
-
-  /* 5×5 grid */
   .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}
-
   .cell{aspect-ratio:1;border-radius:9px;background:var(--surface);border:1px solid var(--border);
-    cursor:pointer;position:relative;overflow:hidden;transition:all 0.15s;
-    display:flex;align-items:center;justify-content:center;font-size:24px;}
-  .cell::before{content:'';position:absolute;inset:0;
-    background:linear-gradient(135deg,rgba(255,255,255,0.03) 0%,transparent 100%);border-radius:inherit;}
-  .cell:hover:not(.no-hover){border-color:rgba(255,255,255,0.2);background:#1e1e2a;
-    transform:scale(1.04);box-shadow:0 4px 14px rgba(0,0,0,0.4);}
-  .cell.gem{background:rgba(0,229,160,0.1);border-color:var(--accent);
-    animation:gemReveal 0.35s cubic-bezier(0.34,1.56,0.64,1);cursor:default;}
-  .cell.mine-hit{background:rgba(255,61,90,0.22);border-color:var(--danger);
-    box-shadow:0 0 24px rgba(255,61,90,0.5);animation:mineHit 0.45s ease forwards;cursor:default;}
-  .cell.mine-hidden{background:rgba(255,61,90,0.07);border-color:rgba(255,61,90,0.3);
-    cursor:default;animation:mineHiddenReveal 0.35s ease both;}
-  .cell.safe-unrevealed{background:rgba(0,229,160,0.04);border-color:rgba(0,229,160,0.18);
-    cursor:default;animation:fadeReveal 0.3s ease;}
+    cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:24px;transition:0.15s;}
+  .cell.gem{background:rgba(0,229,160,0.1);border-color:var(--accent);}
+  .cell.mine-hit{background:rgba(255,61,90,0.22);border-color:var(--danger);}
   .cell.no-hover{cursor:default;}
-
-  @keyframes gemReveal{0%{transform:scale(0.7);opacity:0}70%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
-  @keyframes mineHit{0%{transform:scale(0.75) rotate(-8deg);opacity:0}35%{transform:scale(1.18) rotate(5deg)}
-    60%{transform:scale(0.94) rotate(-2deg)}100%{transform:scale(1) rotate(0);opacity:1}}
-  @keyframes mineHiddenReveal{from{transform:scale(0.85);opacity:0}to{transform:scale(1);opacity:1}}
-  @keyframes fadeReveal{from{opacity:0;transform:scale(0.92)}to{opacity:1;transform:scale(1)}}
 
   .overlay{display:none;position:absolute;inset:0;border-radius:12px;
     background:rgba(10,10,15,0.88);backdrop-filter:blur(4px);
     align-items:center;justify-content:center;flex-direction:column;gap:8px;z-index:10;}
-  .overlay.show{display:flex;animation:fadeIn 0.35s ease;}
-  .overlay-title{font-family:'Bebas Neue',sans-serif;font-size:42px;letter-spacing:5px;}
-  .overlay-sub{font-size:13px;color:var(--muted);letter-spacing:2px;}
-  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-  .dismiss-hint{display:none;position:absolute;bottom:12px;left:50%;
-    transform:translateX(-50%);font-size:10px;letter-spacing:2px;color:var(--muted);
-    background:rgba(10,10,15,0.7);padding:6px 14px;border-radius:20px;
-    border:1px solid var(--border);white-space:nowrap;pointer-events:none;
-    animation:pulse 1.4s ease-in-out infinite;z-index:11;}
-  .dismiss-hint.show{display:block;}
-
+  .overlay.show{display:flex;}
   .toast{position:fixed;top:30px;left:50%;transform:translateX(-50%) translateY(-80px);
     background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 26px;
-    font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:3px;z-index:400;
-    transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1);white-space:nowrap;}
+    z-index:400;transition:transform 0.4s;}
   .toast.show{transform:translateX(-50%) translateY(0);}
-  .toast.win {color:var(--gold);  border-color:var(--gold);  box-shadow:0 4px 24px rgba(245,200,66,0.2);}
-  .toast.lose{color:var(--danger);border-color:var(--danger);box-shadow:0 4px 24px rgba(255,61,90,0.2);}
-  .toast.info{color:var(--accent);border-color:var(--accent);box-shadow:0 4px 24px rgba(0,229,160,0.2);}
-
-  .history{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
-  .history-label{font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-right:4px;}
-  .history-badge{padding:4px 10px;border-radius:4px;font-size:11px;font-weight:500;
-    animation:badgeIn 0.3s cubic-bezier(0.34,1.56,0.64,1);}
-  .history-badge.win {background:var(--gold-dim);  color:var(--gold);  border:1px solid rgba(245,200,66,0.2);}
-  .history-badge.lose{background:var(--danger-dim);color:var(--danger);border:1px solid rgba(255,61,90,0.2);}
-  @keyframes badgeIn{from{transform:scale(0.7);opacity:0}to{transform:scale(1);opacity:1}}
-
-  @media(max-width:700px){
-    .wrapper{grid-template-columns:1fr;max-width:420px;}
-    .top-bar{flex-direction:column;align-items:flex-start;gap:10px;}
-  }
 </style>
 </head>
 <body>
@@ -297,43 +168,36 @@ https://firebase.google.com/docs/web/setup#available-libraries
 <div id="loadingScreen"><div class="loader">LOADING...</div></div>
 <div class="toast" id="toast"></div>
 
-<!-- AUTH -->
 <div id="authScreen" class="hidden">
   <div class="auth-box">
     <div class="auth-logo">MINES<span>.</span></div>
-    <div class="auth-subtitle">Cross-device accounts · Firebase</div>
     <div class="auth-tabs">
-      <button class="auth-tab active" id="tabLogin"    onclick="switchTab('login')">LOGIN</button>
-      <button class="auth-tab"        id="tabRegister" onclick="switchTab('register')">REGISTER</button>
+      <button class="auth-tab active" id="tabLogin" onclick="switchTab('login')">LOGIN</button>
+      <button class="auth-tab" id="tabRegister" onclick="switchTab('register')">REGISTER</button>
     </div>
     <div class="auth-field" id="usernameField" style="display:none">
       <label>Display Name</label>
-      <input class="auth-input" id="authName" type="text" placeholder="your_name" autocomplete="off" spellcheck="false">
+      <input class="auth-input" id="authName" type="text" placeholder="your_name">
     </div>
     <div class="auth-field">
       <label>Email</label>
-      <input class="auth-input" id="authEmail" type="email" placeholder="you@email.com" onkeydown="if(event.key==='Enter')handleAuth()">
+      <input class="auth-input" id="authEmail" type="email" placeholder="you@email.com">
     </div>
     <div class="auth-field">
       <label>Password</label>
-      <input class="auth-input" id="authPass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')handleAuth()">
+      <input class="auth-input" id="authPass" type="password" placeholder="••••••••">
     </div>
     <div class="auth-error" id="authError"></div>
     <button class="btn-auth" id="authBtn" onclick="handleAuth()">LOGIN</button>
-    <div class="auth-note">Accounts sync across all your devices automatically.</div>
   </div>
 </div>
 
-<!-- GAME -->
 <div class="wrapper" id="gameWrapper" style="display:none;">
   <div class="top-bar">
-    <div class="logo">
-      <h1>MINES</h1>
-      <span class="subtitle">Find the gems. Avoid the bombs.</span>
-    </div>
+    <div class="logo"><h1>MINES</h1></div>
     <div class="user-chip">
       <div>
-        <div class="uname"  id="chipUser">—</div>
+        <div class="uname" id="chipUser">—</div>
         <div class="ugames" id="chipGames">0 games played</div>
       </div>
       <button class="btn-logout" onclick="logoutUser()">LOGOUT</button>
@@ -341,524 +205,182 @@ https://firebase.google.com/docs/web/setup#available-libraries
   </div>
 
   <div class="panel">
-    <div>
-      <div class="panel-label">Balance</div>
-      <div class="balance-display">
-        <div class="balance-amount" id="balanceAmt">1,000.00</div>
-        <div class="balance-label">COINS</div>
-      </div>
+    <div class="balance-display">
+      <div class="balance-amount" id="balanceAmt">1,000.00</div>
+      <div style="font-size:10px; color:var(--muted)">COINS</div>
     </div>
     <div>
-      <div class="panel-label">Bet Amount</div>
       <div class="bet-input-row">
-        <span>◈</span>
-        <input type="number" id="betInput" value="50" min="1" max="10000" step="1" inputmode="decimal">
-      </div>
-      <div class="bet-quick">
-        <button onclick="setBet(0.5)">½</button>
-        <button onclick="setBet(2)">2×</button>
-        <button onclick="setBet(null,100)">100</button>
-        <button onclick="setBetMax()">MAX</button>
+        <input type="number" id="betInput" value="50">
       </div>
     </div>
     <div>
-      <div class="panel-label">Mines — <span id="mineCountLabel" style="color:var(--danger)">3</span></div>
-      <div class="mines-slider-row">
-        <input type="range" id="mineSlider" min="1" max="24" value="3" oninput="updateMineCount(this.value)">
-        <div class="mines-count" id="mineCountDisp">3</div>
-      </div>
-      <div class="mines-hint">More mines = higher multiplier</div>
+      <input type="range" id="mineSlider" min="1" max="24" value="3" oninput="updateMineCount(this.value)">
+      <div id="mineCountDisp">3 Mines</div>
     </div>
-    <div>
-      <div class="panel-label">Current Multiplier</div>
-      <div class="multiplier-display">
-        <div class="mult-value" id="multValue">1.00×</div>
-        <div class="mult-profit">
-          <div class="profit-amount" id="profitAmt">+0.00</div>
-          <div class="profit-label">PROFIT</div>
-        </div>
-      </div>
-    </div>
-    <button class="btn btn-start"   id="startBtn"   onclick="startGame()">START GAME</button>
-    <button class="btn btn-cashout" id="cashoutBtn" onclick="cashout()">CASH OUT</button>
+    <button class="btn-auth" id="startBtn" onclick="startGame()">START GAME</button>
+    <button class="btn-auth" id="cashoutBtn" onclick="cashout()" style="display:none; background:var(--gold)">CASH OUT</button>
   </div>
 
   <div class="game-area">
-    <div class="stats-bar">
-      <div class="stat-card"><div class="s-label">Gems Found</div><div class="s-value green" id="gemsFound">0</div></div>
-      <div class="stat-card"><div class="s-label">Mines</div>    <div class="s-value red"   id="minesLeft">—</div></div>
-      <div class="stat-card"><div class="s-label">Cash Out</div> <div class="s-value gold"  id="cashoutAmt">—</div></div>
-    </div>
-    <div class="grid-container" id="gridContainer">
+    <div class="grid-container" id="gridContainer" style="position:relative;">
       <div class="grid" id="grid"></div>
-      <div class="dismiss-hint" id="dismissHint">CLICK ANYWHERE TO CONTINUE</div>
       <div class="overlay show" id="overlay">
-        <div class="overlay-title" id="overlayTitle" style="color:var(--accent)">MINES</div>
-        <div class="overlay-sub"   id="overlaySub">Set your bet and hit start</div>
+        <div id="overlayTitle" style="font-size:40px; font-family:'Bebas Neue'">MINES</div>
+        <div id="overlaySub">Set bet and start</div>
       </div>
     </div>
-    <div class="history" id="history"><span class="history-label">History</span></div>
   </div>
 </div>
 
 <script>
-// ─────────────────────────────────────────────────────────────────────────────
-//  MINES — FRONTEND LOGIC (v3 — Cloud Function backend)
-//
-//  Security model:
-//    • startGame()   → Cloud Function generates seed, deducts bet, returns gameId + seedHash
-//    • revealCell()  → Cloud Function checks cell, returns isMine + new balance
-//    • cashout()     → Cloud Function calculates win, credits balance, returns mineIndices
-//    • bust (mine)   → Cloud Function confirms loss, returns all mineIndices
-//    • Frontend NEVER writes balanceCents — Firestore rules hard-block it
-//    • gamesPlayed incremented atomically by Cloud Function — can't be skipped
-// ─────────────────────────────────────────────────────────────────────────────
-
-const GRID_SIZE = 25; // 5×5
-
-// ── GAME STATE ────────────────────────────────────────────────────────────────
-let gameId            = null;   // server-issued game token
-let seedHash          = null;   // SHA-256 of server seed, shown to user pre-game
-let mineIndices       = null;   // populated only when game ends (from server)
-let revealedCells     = new Set();
-let revealedIsMine    = new Map();
-let balance           = 0;      // integer cents, read from server
-let gameActive        = false;
-let clickLocked       = false;
-let currentBet        = 0;      // cents
-let currentMines      = 3;
+// Game State
+let balance = 0;
+let gameId = null;
+let currentBet = 0;
+let currentMines = 3;
 let gemsRevealedCount = 0;
+let gameActive = false;
+let clickLocked = false;
+let revealedCells = new Set();
+let revealedIsMine = new Map();
+let mineIndices = null;
+let currentUser = null;
+let currentTab = 'login';
 
-// ── INTEGER CENT MATH ─────────────────────────────────────────────────────────
-function coinsToCents(c) { return Math.round(c * 100); }
-function centsToCoins(c) { return c / 100; }
-
-// Display-only multiplier (server is authoritative for actual win amount)
-function calcMultDisplay(revealed, mines) {
-  if (revealed === 0) return "1.00";
-  const safe = GRID_SIZE - mines;
-  let num = 1, den = 1;
-  for (let i = 0; i < revealed; i++) { num *= (GRID_SIZE - i); den *= (safe - i); }
-  return ((num / den) * 0.97).toFixed(2);
-}
-
-function fmtCoins(cents) {
-  return (cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-// ── UI HELPERS ────────────────────────────────────────────────────────────────
-function updateBalanceUI() { document.getElementById('balanceAmt').textContent = fmtCoins(balance); }
-
-function updateMineCount(v) {
-  currentMines = parseInt(v);
-  document.getElementById('mineCountDisp').textContent = v;
-  document.getElementById('mineCountLabel').textContent = v;
-}
-
-function updateMultUI() {
-  const m = calcMultDisplay(gemsRevealedCount, currentMines);
-  const betCoins = centsToCoins(currentBet);
-  const profit   = (parseFloat(m) * betCoins - betCoins).toFixed(2);
-  document.getElementById('multValue').textContent  = m + '×';
-  document.getElementById('profitAmt').textContent  = '+' + profit;
-  document.getElementById('gemsFound').textContent  = gemsRevealedCount;
-  document.getElementById('cashoutAmt').textContent =
-    gemsRevealedCount > 0 ? fmtCoins(Math.floor(currentBet * parseFloat(m))) : '—';
-}
+// Helpers
+const fmtCoins = (cents) => (cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2 });
+const updateBalanceUI = () => document.getElementById('balanceAmt').textContent = fmtCoins(balance);
 
 function showToast(msg, type) {
   const t = document.getElementById('toast');
-  t.textContent = msg; t.className = 'toast ' + type + ' show';
-  clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('show'), 2400);
+  t.textContent = msg; t.className = 'toast show';
+  setTimeout(() => t.classList.remove('show'), 2000);
 }
-
-function showSeedHash(hash) {
-  // Show the hashed server seed in the overlay so the user can verify fairness later
-  document.getElementById('overlaySub').textContent = 'Seed: ' + hash.slice(0, 20) + '…';
-}
-
-// ── AUTH STATE ─────────────────────────────────────────────────────────────────
-let currentUser = null;
-let currentTab  = 'login';
-let fbReady     = false;
-
-window._onFirebaseUser = function(data) {
-  currentUser = data;
-  balance = data.balanceCents != null ? data.balanceCents : coinsToCents(data.balance || 1000);
-  fbReady = true;
-  document.getElementById('loadingScreen').classList.add('hidden');
-  loadHistoryBadges(currentUser.history || []);
-  if (data.pendingGame) {
-    recoverPendingGame(data.pendingGame);
-  } else {
-    enterGame();
-  }
-};
-
-window._showAuth = function() {
-  fbReady = true;
-  document.getElementById('loadingScreen').classList.add('hidden');
-  document.getElementById('authScreen').classList.remove('hidden');
-};
 
 function switchTab(tab) {
   currentTab = tab;
   document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
   document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
-  document.getElementById('authBtn').textContent = tab === 'login' ? 'LOGIN' : 'CREATE ACCOUNT';
   document.getElementById('usernameField').style.display = tab === 'register' ? 'flex' : 'none';
-  document.getElementById('authError').textContent = '';
+  document.getElementById('authBtn').textContent = tab === 'login' ? 'LOGIN' : 'CREATE ACCOUNT';
 }
 
+function updateMineCount(v) {
+  currentMines = parseInt(v);
+  document.getElementById('mineCountDisp').textContent = v + " Mines";
+}
+
+// Logic Hooks
+window._onFirebaseUser = function(data) {
+  currentUser = data;
+  balance = data.balanceCents || 100000;
+  document.getElementById('loadingScreen').classList.add('hidden');
+  enterGame();
+};
+
+window._showAuth = function() {
+  document.getElementById('loadingScreen').classList.add('hidden');
+  document.getElementById('authScreen').classList.remove('hidden');
+};
+
 async function handleAuth() {
-  const email = document.getElementById('authEmail').value.trim();
-  const pass  = document.getElementById('authPass').value;
-  const name  = document.getElementById('authName').value.trim();
-  const errEl = document.getElementById('authError');
-  const btn   = document.getElementById('authBtn');
-  errEl.textContent = '';
-
-  if (!email || !email.includes('@'))  { errEl.textContent = 'ENTER A VALID EMAIL'; return; }
-  if (!pass  || pass.length < 6)        { errEl.textContent = 'PASSWORD MUST BE 6+ CHARACTERS'; return; }
-  if (currentTab === 'register' && (!name || name.length < 2)) { errEl.textContent = 'ENTER A DISPLAY NAME'; return; }
-
-  btn.disabled = true; btn.textContent = '...';
+  const email = document.getElementById('authEmail').value;
+  const pass = document.getElementById('authPass').value;
+  const name = document.getElementById('authName').value;
   try {
     if (currentTab === 'register') {
-      currentUser = await window._fb.register(email, pass, name);
-      balance = currentUser.balanceCents != null ? currentUser.balanceCents : coinsToCents(1000);
-      showToast('WELCOME, ' + name.toUpperCase() + '!', 'info');
+      await window._fb.register(email, pass, name);
     } else {
-      currentUser = await window._fb.login(email, pass);
-      balance = currentUser.balanceCents != null
-        ? currentUser.balanceCents
-        : coinsToCents(currentUser.balance || 1000);
-      showToast('WELCOME BACK!', 'info');
-    }
-    loadHistoryBadges(currentUser.history || []);
-    if (currentUser.pendingGame) {
-      recoverPendingGame(currentUser.pendingGame);
-    } else {
-      enterGame();
+      await window._fb.login(email, pass);
     }
   } catch(e) {
-    const code = e.code || '';
-    errEl.textContent = (
-      code === 'auth/user-not-found'      ? 'ACCOUNT NOT FOUND' :
-      code === 'auth/wrong-password'       ? 'INCORRECT PASSWORD' :
-      code === 'auth/invalid-credential'   ? 'INVALID EMAIL OR PASSWORD' :
-      code === 'auth/email-already-in-use' ? 'EMAIL ALREADY REGISTERED' :
-      code === 'auth/too-many-requests'    ? 'TOO MANY ATTEMPTS — TRY LATER' :
-      (e.message || 'SOMETHING WENT WRONG').toUpperCase()
-    );
+    document.getElementById('authError').textContent = e.message.toUpperCase();
   }
-  btn.disabled = false;
-  btn.textContent = currentTab === 'login' ? 'LOGIN' : 'CREATE ACCOUNT';
 }
 
 function enterGame() {
   document.getElementById('authScreen').classList.add('hidden');
   document.getElementById('gameWrapper').style.display = 'grid';
-  document.getElementById('chipUser').textContent  = (currentUser.username || currentUser.email || '—').toUpperCase();
-  document.getElementById('chipGames').textContent = (currentUser.gamesPlayed || 0) + ' games played';
+  document.getElementById('chipUser').textContent = (currentUser.username || currentUser.email).toUpperCase();
   updateBalanceUI();
   renderGrid();
-  document.getElementById('overlay').classList.add('show');
-  document.getElementById('overlayTitle').textContent = 'MINES';
-  document.getElementById('overlayTitle').style.color = 'var(--accent)';
-  document.getElementById('overlaySub').textContent   = 'Set your bet and hit start';
 }
 
 async function logoutUser() {
-  if (gameActive) {
-    // Bust the game server-side before logging out so gamesPlayed is always recorded
-    try { await window._fb.resolveGame(gameId, 'bust', -1); } catch(_) {}
-    gameActive = false; gameId = null;
-  }
   await window._fb.logout();
-  currentUser = null; balance = 0; gameActive = false; mineIndices = null;
-  document.getElementById('gameWrapper').style.display = 'none';
-  document.getElementById('authScreen').classList.remove('hidden');
-  document.getElementById('authEmail').value = document.getElementById('authPass').value = '';
-  document.getElementById('authError').textContent = '';
-  document.getElementById('history').innerHTML = '<span class="history-label">History</span>';
-  renderGrid();
+  location.reload();
 }
 
-async function saveUserMeta(extra = {}) {
-  if (!currentUser) return;
-  try {
-    await window._fb.saveUserMeta(currentUser.uid, {
-      gamesPlayed: currentUser.gamesPlayed,
-      history:     currentUser.history,
-      ...extra
-    });
-  } catch(e) { console.warn('Meta save failed:', e); }
-}
-
-// ── PENDING GAME RECOVERY ─────────────────────────────────────────────────────
-// If user refreshes mid-game the Cloud Function marks the game as busted and
-// refunds the bet. We just need to re-read the balance.
-async function recoverPendingGame(pending) {
-  try {
-    // Tell server to resolve the dangling game as a bust (refunds bet)
-    const result = await window._fb.resolveGame(pending.gameId, 'bust', -1);
-    balance = result.newBalanceCents;
-    showToast('BET REFUNDED — PAGE WAS REFRESHED', 'info');
-  } catch(_) {
-    // If game was already resolved, just re-read balance from Firestore
-    const fresh = await window._fb.getUserData(currentUser.uid);
-    if (fresh) balance = fresh.balanceCents;
-  }
-  await saveUserMeta({ pendingGame: null });
-  enterGame();
-}
-
-// ── GRID RENDER ────────────────────────────────────────────────────────────────
 function renderGrid(mode = 'normal') {
   const grid = document.getElementById('grid');
   grid.innerHTML = '';
-  for (let i = 0; i < GRID_SIZE; i++) {
+  for (let i = 0; i < 25; i++) {
     const cell = document.createElement('div');
     cell.className = 'cell';
-
     if (revealedCells.has(i)) {
       cell.classList.add('no-hover');
-      if (revealedIsMine.get(i)) {
-        cell.classList.add('mine-hit');
-        cell.textContent = '💣';
-      } else {
-        cell.classList.add('gem');
-        cell.innerHTML = '<span style="filter:drop-shadow(0 0 6px var(--accent))">💎</span>';
-      }
-    } else if ((mode === 'loss' || mode === 'cashout') && mineIndices) {
-      cell.classList.add('no-hover');
-      if (mineIndices.includes(i)) {
-        cell.classList.add('mine-hidden');
-        cell.style.animationDelay = (mineIndices.indexOf(i) * 70) + 'ms';
-        cell.textContent = '💣';
-        if (mode === 'cashout') cell.style.opacity = '0.55';
-      } else {
-        cell.classList.add('safe-unrevealed');
-        cell.innerHTML = '<span style="opacity:0.22">💎</span>';
-      }
+      cell.textContent = revealedIsMine.get(i) ? '💣' : '💎';
+      if (revealedIsMine.get(i)) cell.classList.add('mine-hit');
+      else cell.classList.add('gem');
     } else {
-      if (gameActive && !clickLocked) {
-        cell.addEventListener('click', () => revealCell(i));
-      } else {
-        cell.classList.add('no-hover');
-      }
+      cell.onclick = () => revealCell(i);
     }
     grid.appendChild(cell);
   }
 }
 
-// ── GAME LOGIC ─────────────────────────────────────────────────────────────────
 async function startGame() {
-  const betCoins = parseFloat(document.getElementById('betInput').value);
-  if (isNaN(betCoins) || betCoins <= 0) { showToast('INVALID BET', 'lose'); return; }
-  const betCents = coinsToCents(betCoins);
-  if (betCents > balance)  { showToast('INSUFFICIENT FUNDS', 'lose'); return; }
-  if (betCents < 1)        { showToast('MINIMUM BET IS 0.01', 'lose'); return; }
-
-  document.getElementById('startBtn').disabled = true;
-  document.getElementById('startBtn').textContent = 'STARTING...';
+  const bet = parseFloat(document.getElementById('betInput').value);
+  const betCents = Math.round(bet * 100);
+  if (betCents > balance) return showToast("INSUFFICIENT FUNDS");
 
   try {
-    // Cloud Function: deducts bet atomically, returns gameId and seedHash
-    const result = await window._fb.startGame(betCents, currentMines);
-    gameId   = result.gameId;
-    seedHash = result.seedHash;
-    balance  = result.newBalanceCents;
+    const res = await window._fb.startGame(betCents, currentMines);
+    gameId = res.gameId;
+    balance = res.newBalanceCents;
     currentBet = betCents;
-  } catch(e) {
-    showToast(e.message?.toUpperCase() || 'SERVER ERROR', 'lose');
-    document.getElementById('startBtn').disabled = false;
-    document.getElementById('startBtn').textContent = 'START GAME';
-    return;
-  }
-
-  mineIndices = null;
-  revealedCells.clear();
-  revealedIsMine.clear();
-  gemsRevealedCount = 0;
-  gameActive  = true;
-  clickLocked = false;
-
-  updateBalanceUI();
-  document.getElementById('mineSlider').disabled = true;
-  document.getElementById('betInput').disabled   = true;
-  document.getElementById('startBtn').disabled   = true;
-  document.getElementById('startBtn').textContent = 'START GAME';
-  document.getElementById('cashoutBtn').classList.add('visible');
-  document.getElementById('minesLeft').textContent = currentMines;
-  document.getElementById('overlay').classList.remove('show');
-  renderGrid('normal');
-  updateMultUI();
-  // Show hashed seed — user can verify fairness after game by comparing to revealed seed
-  showSeedHash(seedHash);
+    gameActive = true;
+    revealedCells.clear();
+    revealedIsMine.clear();
+    gemsRevealedCount = 0;
+    document.getElementById('overlay').classList.remove('show');
+    document.getElementById('cashoutBtn').style.display = 'block';
+    updateBalanceUI();
+    renderGrid();
+  } catch(e) { showToast(e.message); }
 }
 
 async function revealCell(index) {
-  if (!gameActive || revealedCells.has(index) || clickLocked) return;
+  if (!gameActive || clickLocked) return;
   clickLocked = true;
-  // Optimistically mark cell as pending (visual feedback)
-  renderGrid('normal');
-
-  let result;
   try {
-    result = await window._fb.resolveGame(gameId, 'reveal', index);
-  } catch(e) {
-    showToast('CONNECTION ERROR — TRY AGAIN', 'lose');
-    clickLocked = false;
-    renderGrid('normal');
-    return;
-  }
-
-  revealedCells.add(index);
-  revealedIsMine.set(index, result.isMine);
-  balance = result.newBalanceCents;
-
-  if (result.isMine) {
-    mineIndices = result.mineIndices; // server reveals all mine positions
-    renderGrid('normal');
-    setTimeout(() => renderGrid('loss'), 150);
-    await endGame(false, 0, result.serverSeed);
-  } else {
-    gemsRevealedCount++;
-    renderGrid('normal');
-    updateMultUI();
-    clickLocked = false;
-    if (result.done) {
-      // All safe cells revealed — auto cashout
-      await cashout();
+    const res = await window._fb.resolveGame(gameId, 'reveal', index);
+    revealedCells.add(index);
+    revealedIsMine.set(index, res.isMine);
+    if (res.isMine) {
+      gameActive = false;
+      showToast("BOOM!", "lose");
+      setTimeout(() => document.getElementById('overlay').classList.add('show'), 1000);
+    } else {
+      gemsRevealedCount++;
     }
-  }
+    renderGrid();
+  } catch(e) { showToast("ERROR"); }
+  clickLocked = false;
 }
 
 async function cashout() {
-  if (!gameActive) return;
-  if (gemsRevealedCount === 0) { showToast('REVEAL A GEM FIRST', 'lose'); return; }
-  clickLocked = true;
-
-  let result;
   try {
-    result = await window._fb.resolveGame(gameId, 'cashout', -1);
-  } catch(e) {
-    showToast('CONNECTION ERROR', 'lose');
-    clickLocked = false;
-    return;
-  }
-
-  balance     = result.newBalanceCents;
-  mineIndices = result.mineIndices;
-  updateBalanceUI();
-  renderGrid('cashout');
-  await endGame(true, result.winCents, result.serverSeed);
+    const res = await window._fb.resolveGame(gameId, 'cashout', -1);
+    balance = res.newBalanceCents;
+    gameActive = false;
+    updateBalanceUI();
+    showToast("WINNER!");
+    document.getElementById('overlay').classList.add('show');
+    document.getElementById('cashoutBtn').style.display = 'none';
+  } catch(e) { showToast("ERROR"); }
 }
-
-async function endGame(won, amountCents = 0, serverSeed = null) {
-  gameActive  = false;
-  gameId      = null;
-  clickLocked = false;
-
-  document.getElementById('mineSlider').disabled = false;
-  document.getElementById('betInput').disabled   = false;
-  document.getElementById('startBtn').disabled   = false;
-  document.getElementById('cashoutBtn').classList.remove('visible');
-  document.getElementById('minesLeft').textContent  = '—';
-  document.getElementById('cashoutAmt').textContent = '—';
-  document.getElementById('gemsFound').textContent  = '—';
-  document.getElementById('multValue').textContent  = '1.00×';
-  document.getElementById('profitAmt').textContent  = '+0.00';
-  updateBalanceUI();
-
-  const title = document.getElementById('overlayTitle');
-  const sub   = document.getElementById('overlaySub');
-
-  if (won) {
-    const m = calcMultDisplay(gemsRevealedCount, currentMines);
-    title.textContent = '+ ' + fmtCoins(amountCents);
-    title.style.color = 'var(--gold)';
-    // Show the real server seed now — user can verify the hash matches seedHash
-    const seedLine = serverSeed ? 'Seed: ' + serverSeed.slice(0, 16) + '…' : '';
-    sub.textContent = m + '× — ' + gemsRevealedCount + ' gem' + (gemsRevealedCount !== 1 ? 's' : '') + ' · ' + seedLine;
-    showToast('CASHED OUT  ◈' + fmtCoins(amountCents), 'win');
-    addHistoryBadge(true, amountCents);
-    setTimeout(() => document.getElementById('overlay').classList.add('show'), 400);
-  } else {
-    title.textContent = 'BOOM!';
-    title.style.color = 'var(--danger)';
-    const seedLine = serverSeed ? 'Seed: ' + serverSeed.slice(0, 16) + '…' : '';
-    sub.textContent = currentMines + ' mine' + (currentMines !== 1 ? 's' : '') + ' — click anywhere to continue · ' + seedLine;
-    showToast('MINE HIT  −◈' + fmtCoins(currentBet), 'lose');
-    addHistoryBadge(false, currentBet);
-
-    const hint = document.getElementById('dismissHint');
-    setTimeout(() => hint.classList.add('show'), 900);
-    const gc = document.getElementById('gridContainer');
-    function onDismiss() {
-      gc.removeEventListener('click', onDismiss);
-      hint.classList.remove('show');
-      mineIndices = null;
-      revealedCells.clear();
-      revealedIsMine.clear();
-      renderGrid('normal');
-      document.getElementById('overlay').classList.add('show');
-      document.getElementById('overlayTitle').textContent = 'MINES';
-      document.getElementById('overlayTitle').style.color = 'var(--accent)';
-      document.getElementById('overlaySub').textContent   = 'Set your bet and hit start';
-    }
-    setTimeout(() => gc.addEventListener('click', onDismiss), 950);
-  }
-
-  if (currentUser) {
-    currentUser.gamesPlayed = (currentUser.gamesPlayed || 0) + 1;
-    currentUser.history = [
-      { won, amountCents, ts: Date.now() },
-      ...(currentUser.history || [])
-    ].slice(0, 20);
-    document.getElementById('chipGames').textContent = currentUser.gamesPlayed + ' games played';
-    await saveUserMeta({ pendingGame: null });
-  }
-}
-
-function addHistoryBadge(won, amountCents) {
-  const h = document.getElementById('history');
-  const b = document.createElement('span');
-  b.className = 'history-badge ' + (won ? 'win' : 'lose');
-  b.textContent = (won ? '+' : '−') + '◈' + fmtCoins(amountCents);
-  const all = h.querySelectorAll('.history-badge');
-  if (all.length >= 10) all[all.length - 1].remove();
-  h.insertBefore(b, h.children[1]);
-}
-
-function loadHistoryBadges(hist) {
-  const h = document.getElementById('history');
-  h.innerHTML = '<span class="history-label">History</span>';
-  [...hist].slice(0, 10).reverse().forEach(item => {
-    const cents = item.amountCents != null ? item.amountCents : coinsToCents(item.amount || 0);
-    addHistoryBadge(item.won, cents);
-  });
-}
-
-function setBet(mult, fixed) {
-  const inp = document.getElementById('betInput');
-  const cur = parseFloat(inp.value) || 0;
-  inp.value = fixed !== undefined ? fixed : Math.max(0.01, parseFloat((cur * mult).toFixed(2)));
-}
-
-function setBetMax() {
-  document.getElementById('betInput').value = centsToCoins(balance).toFixed(2);
-}
-
-setTimeout(() => {
-  if (!fbReady) {
-    document.getElementById('loadingScreen').classList.add('hidden');
-    document.getElementById('authScreen').classList.remove('hidden');
-    document.getElementById('authError').textContent = 'PASTE YOUR FIREBASE CONFIG INTO THE FILE';
-  }
-}, 8000);
 </script>
 </body>
 </html>
