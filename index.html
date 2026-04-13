@@ -29,7 +29,6 @@
   };
 
   const app       = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
   const auth      = getAuth(app);
   const db        = getFirestore(app);
   const functions = getFunctions(app);
@@ -39,7 +38,7 @@
   const _fnRevealCell  = httpsCallable(functions, 'revealCell');
   const _fnCashout     = httpsCallable(functions, 'cashout');
   const _fnBust        = httpsCallable(functions, 'bust');
-  const _fnSimpleGame  = httpsCallable(functions, 'simpleGame'); // coinflip / crate
+  const _fnSimpleGame  = httpsCallable(functions, 'simpleGame');
 
   window._fb = {
     async register(email, password, username) {
@@ -62,12 +61,10 @@
       const safe = { ...data }; delete safe.balanceCents;
       await updateDoc(doc(db, "users", uid), safe);
     },
-    // Mines
     async startGame(betCents, mineCount) { return (await _fnStartGame({ betCents, mineCount })).data; },
     async revealCell(gameId, cellIndex)  { return (await _fnRevealCell({ gameId, cellIndex })).data; },
     async cashout(gameId)                { return (await _fnCashout({ gameId })).data; },
     async bust(gameId)                   { return (await _fnBust({ gameId })).data; },
-    // Simple games (coinflip / crate) — server deducts bet, returns result, credits win
     async simpleGame(type, betCents, choice) {
       return (await _fnSimpleGame({ type, betCents, choice })).data;
     },
@@ -86,7 +83,7 @@
 
 <style>
 /* ═══════════════════════
-   TOKENS
+   TOKENS & CORE
 ═══════════════════════ */
 :root {
   --bg:         #0a0a0f;
@@ -109,23 +106,17 @@
   --gap:        12px;
 }
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
-html { height:100%; }
+html { height:100%; -webkit-text-size-adjust: 100%; }
 body {
   background: var(--bg); color: var(--text);
   font-family: 'DM Mono', monospace;
   min-height: 100%; display: flex; flex-direction: column;
   align-items: center; padding: 0; overflow-x: hidden;
-}
-body::before {
-  content: ''; position: fixed; top:-50%; left:-50%; width:200%; height:200%;
-  background:
-    radial-gradient(ellipse at 60% 20%, rgba(0,229,160,0.04) 0%, transparent 50%),
-    radial-gradient(ellipse at 20% 80%, rgba(100,80,255,0.04) 0%, transparent 50%);
-  pointer-events: none; z-index: 0;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* ═══════════════════════
-   LOADING
+   LOADING & AUTH
 ═══════════════════════ */
 #loadingScreen {
   position: fixed; inset: 0; background: var(--bg);
@@ -138,9 +129,6 @@ body::before {
 }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.2} }
 
-/* ═══════════════════════
-   AUTH
-═══════════════════════ */
 #authScreen {
   position: fixed; inset: 0; background: var(--bg);
   display: flex; align-items: center; justify-content: center;
@@ -157,61 +145,42 @@ body::before {
   color: var(--text); line-height: 1; text-align: center;
 }
 .auth-logo span { color: var(--accent); }
-.auth-subtitle { text-align: center; font-size: 11px; color: var(--muted); letter-spacing: 2px; margin-top: -10px; }
 .auth-tabs {
   display: grid; grid-template-columns: 1fr 1fr;
   background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
 }
 .auth-tab {
   padding: 12px; text-align: center; font-family: 'Bebas Neue', sans-serif;
-  font-size: 16px; letter-spacing: 2px; cursor: pointer; color: var(--muted);
+  font-size: 16px; cursor: pointer; color: var(--muted);
   transition: all 0.2s; border: none; background: transparent; min-height: 44px;
 }
 .auth-tab.active { background: var(--accent); color: #0a0a0f; }
-.auth-field { display: flex; flex-direction: column; gap: 6px; }
-.auth-field label { font-size: 10px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; }
 .auth-input {
   background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
-  padding: 14px; color: var(--text); font-family: 'DM Mono', monospace;
-  font-size: 16px; outline: none; transition: border-color 0.2s; width: 100%;
-  -webkit-appearance: none; appearance: none;
+  padding: 14px; color: var(--text); font-family: 'DM Mono', monospace; width: 100%;
 }
-.auth-input:focus { border-color: var(--accent); }
-.auth-error { font-size: 11px; color: var(--danger); letter-spacing: 1px; min-height: 16px; text-align: center; }
-.auth-note { font-size: 10px; color: var(--muted); letter-spacing: 1px; text-align: center; line-height: 1.6; }
 .btn-auth {
   background: var(--accent); color: #0a0a0f; border: none; border-radius: 8px;
-  padding: 16px; font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 3px;
-  cursor: pointer; transition: all 0.15s; box-shadow: 0 4px 20px rgba(0,229,160,0.25);
-  min-height: 52px; width: 100%; -webkit-tap-highlight-color: transparent;
+  padding: 16px; font-family: 'Bebas Neue', sans-serif; font-size: 18px;
+  cursor: pointer; width: 100%; min-height: 52px;
 }
-.btn-auth:active { opacity: 0.85; transform: scale(0.98); }
-.btn-auth:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ═══════════════════════
-   SITE SHELL
+   SITE SHELL & NAV
 ═══════════════════════ */
-#siteWrapper {
-  display: none; flex-direction: column;
-  width: 100%; min-height: 100vh; position: relative; z-index: 1;
-}
+#siteWrapper { display: none; flex-direction: column; width: 100%; min-height: 100vh; }
 
-/* ── NAV BAR ── */
 .nav {
   background: var(--panel); border-bottom: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 16px; height: 56px; position: sticky; top: 0; z-index: 50;
   gap: 10px;
 }
-.nav-brand {
-  font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 5px;
-  color: var(--text); line-height: 1; flex-shrink: 0;
-}
+.nav-brand { font-family: 'Bebas Neue', sans-serif; font-size: 28px; color: var(--text); }
 .nav-brand span { color: var(--accent); }
 
 .nav-games {
   display: flex; gap: 4px; overflow-x: auto; flex: 1;
-  /* hide scrollbar */
   scrollbar-width: none; -ms-overflow-style: none;
 }
 .nav-games::-webkit-scrollbar { display: none; }
@@ -220,359 +189,90 @@ body::before {
   background: transparent; border: 1px solid transparent; color: var(--muted);
   font-family: 'DM Mono', monospace; font-size: 11px; padding: 7px 12px;
   border-radius: 6px; cursor: pointer; transition: all 0.15s;
-  white-space: nowrap; letter-spacing: 1px; min-height: 36px;
-  -webkit-tap-highlight-color: transparent; flex-shrink: 0;
+  white-space: nowrap; min-height: 36px; -webkit-tap-highlight-color: transparent;
 }
-.nav-btn:hover  { color: var(--text); border-color: var(--border); }
 .nav-btn.active { background: var(--surface); border-color: var(--border); color: var(--text); }
-.nav-btn.active.mines  { color: var(--danger); border-color: var(--danger); }
-.nav-btn.active.crate  { color: var(--purple); border-color: var(--purple); }
-.nav-btn.active.coin   { color: var(--gold);   border-color: var(--gold); }
 
-.nav-user {
-  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
-}
-.nav-balance {
-  font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: var(--gold);
-  letter-spacing: 1px; white-space: nowrap;
-}
-.nav-balance-label { font-size: 8px; color: var(--muted); letter-spacing: 1px; margin-top: 1px; }
-.nav-username { font-size: 10px; color: var(--accent); letter-spacing: 1px; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.btn-nav-logout {
-  background: transparent; border: 1px solid var(--border); color: var(--muted);
-  font-family: 'DM Mono', monospace; font-size: 10px; padding: 5px 8px;
-  border-radius: 5px; cursor: pointer; transition: all 0.15s; min-height: 30px;
-  -webkit-tap-highlight-color: transparent;
-}
-.btn-nav-logout:active { border-color: var(--danger); color: var(--danger); }
-
-/* ── PAGE CONTENT ── */
-.page-content {
-  padding: 16px; width: 100%; max-width: 980px;
-  margin: 0 auto; display: flex; flex-direction: column; gap: var(--gap);
-}
+.nav-user { display: flex; align-items: center; gap: 10px; }
+.nav-balance { font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: var(--gold); }
+.nav-username { font-size: 10px; color: var(--accent); max-width: 80px; overflow: hidden; white-space: nowrap; }
 
 /* ═══════════════════════
-   SHARED PANEL / INPUT STYLES
+   LAYOUT & SHARED
 ═══════════════════════ */
-.panel {
-  background: var(--panel); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 16px;
-  display: flex; flex-direction: column; gap: 14px;
-}
-.panel-label { font-size: 9px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; }
+.page-content { padding: 16px; width: 100%; max-width: 980px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--gap); }
+
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 14px; }
 .panel-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
 
 .balance-display { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
-.balance-amount { font-family: 'Bebas Neue', sans-serif; font-size: 30px; color: var(--gold); letter-spacing: 2px; line-height: 1; }
-.balance-label { font-size: 9px; color: var(--muted); letter-spacing: 2px; margin-top: 2px; }
+.balance-amount { font-family: 'Bebas Neue', sans-serif; font-size: 30px; color: var(--gold); line-height: 1; }
 
-.bet-wrap { display: flex; flex-direction: column; gap: 6px; }
-.bet-input-row {
-  display: flex; align-items: center; background: var(--surface);
-  border: 1px solid var(--border); border-radius: 8px; overflow: hidden; transition: border-color 0.2s;
-}
-.bet-input-row:focus-within { border-color: var(--accent); }
-.bet-input-row .coin-icon {
-  padding: 0 12px; color: var(--gold); font-size: 13px;
-  background: rgba(245,200,66,0.06); border-right: 1px solid var(--border);
-  align-self: stretch; display: flex; align-items: center; flex-shrink: 0;
-}
-.bet-input-row input {
-  flex: 1; background: transparent; border: none; outline: none;
-  color: var(--text); font-family: 'DM Mono', monospace; font-size: 16px;
-  padding: 12px 10px; min-width: 0; -webkit-appearance: none; appearance: none;
-}
-.bet-input-row input::-webkit-inner-spin-button,
-.bet-input-row input::-webkit-outer-spin-button { -webkit-appearance: none; }
-.bet-input-row input[type=number] { -moz-appearance: textfield; }
+.bet-input-row { display: flex; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.bet-input-row input { flex: 1; background: transparent; border: none; color: var(--text); font-family: 'DM Mono', monospace; padding: 12px 10px; }
 
-.bet-quick { display: grid; grid-template-columns: repeat(4,1fr); gap: 5px; }
-.bet-quick button {
-  background: var(--surface); border: 1px solid var(--border); color: var(--muted);
-  font-family: 'DM Mono', monospace; font-size: 11px; padding: 8px 4px;
-  border-radius: 6px; cursor: pointer; transition: all 0.15s; min-height: 36px;
-  -webkit-tap-highlight-color: transparent;
-}
-.bet-quick button:active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
-@media (hover:hover) { .bet-quick button:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); } }
-
-.btn {
-  width: 100%; padding: 15px; border-radius: 8px; border: none;
-  font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 3px;
-  cursor: pointer; transition: all 0.15s; min-height: 52px;
-  -webkit-tap-highlight-color: transparent;
-}
-.btn:active { transform: scale(0.98); }
-.btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
-.btn-green  { background: var(--accent); color: #0a0a0f; box-shadow: 0 4px 20px rgba(0,229,160,0.3); }
-.btn-gold   { background: var(--gold);   color: #0a0a0f; box-shadow: 0 4px 20px rgba(245,200,66,0.3); display:none; }
+.btn { width: 100%; padding: 15px; border-radius: 8px; border: none; font-family: 'Bebas Neue', sans-serif; font-size: 18px; cursor: pointer; min-height: 52px; -webkit-tap-highlight-color: transparent; }
+.btn-green  { background: var(--accent); color: #0a0a0f; }
+.btn-gold   { background: var(--gold);   color: #0a0a0f; display:none; }
 .btn-gold.visible { display: block; }
-.btn-purple { background: var(--purple); color: #fff;    box-shadow: 0 4px 20px rgba(168,85,247,0.3); }
-@media (hover:hover) {
-  .btn-green:hover  { transform: translateY(-1px); box-shadow: 0 4px 28px rgba(0,229,160,0.5); }
-  .btn-gold:hover   { transform: translateY(-1px); box-shadow: 0 4px 28px rgba(245,200,66,0.5); }
-  .btn-purple:hover { transform: translateY(-1px); box-shadow: 0 4px 28px rgba(168,85,247,0.5); }
-}
+.btn-purple { background: var(--purple); color: #fff; }
 
-/* ── TOAST ── */
-.toast {
-  position: fixed; top: 66px; left: 50%;
-  transform: translateX(-50%) translateY(-80px);
-  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
-  padding: 12px 22px; font-family: 'Bebas Neue', sans-serif; font-size: 17px; letter-spacing: 3px;
-  z-index: 400; transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
-  white-space: nowrap; max-width: calc(100vw - 32px); overflow: hidden; text-overflow: ellipsis;
-}
-.toast.show { transform: translateX(-50%) translateY(0); }
-.toast.win  { color:var(--gold);   border-color:var(--gold);   box-shadow:0 4px 20px rgba(245,200,66,0.2); }
-.toast.lose { color:var(--danger); border-color:var(--danger); box-shadow:0 4px 20px rgba(255,61,90,0.2); }
-.toast.info { color:var(--accent); border-color:var(--accent); box-shadow:0 4px 20px rgba(0,229,160,0.2); }
-
-/* ── HISTORY ROW ── */
-.history { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; padding: 4px 0; }
-.history-label { font-size: 9px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-right: 4px; }
-.history-badge {
-  padding: 3px 9px; border-radius: 4px; font-size: 10px; font-weight: 500;
-  animation: badgeIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
-}
-.history-badge.win  { background:var(--gold-dim);   color:var(--gold);   border:1px solid rgba(245,200,66,0.2); }
-.history-badge.lose { background:var(--danger-dim); color:var(--danger); border:1px solid rgba(255,61,90,0.2); }
-@keyframes badgeIn { from{transform:scale(0.7);opacity:0} to{transform:scale(1);opacity:1} }
-
-/* ═══════════════════════
-   GAME PAGES (hidden by default)
-═══════════════════════ */
 .game-page { display: none; }
 .game-page.active { display: flex; flex-direction: column; gap: var(--gap); }
 
-/* ── GAME LAYOUT (sidebar on desktop) ── */
-.game-layout {
-  display: flex; flex-direction: column; gap: var(--gap);
+/* ═══════════════════════
+   MINES SPECIFIC
+═══════════════════════ */
+.grid-container { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; position: relative; }
+.grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.cell {
+  aspect-ratio: 1; border-radius: 8px; background: var(--surface); border: 1px solid var(--border);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: clamp(18px, 5vw, 28px); -webkit-tap-highlight-color: transparent;
 }
-@media (min-width: 700px) {
+.cell.gem { background: rgba(0,229,160,0.1); border-color: var(--accent); }
+.cell.mine-hit { background: rgba(255,61,90,0.22); border-color: var(--danger); }
+.cell.no-hover { cursor: default; }
+
+.overlay { display: none; position: absolute; inset: 0; background: rgba(10,10,15,0.88); backdrop-filter: blur(4px); align-items: center; justify-content: center; flex-direction: column; gap: 6px; z-index: 10; padding: 16px; text-align: center; }
+.overlay.show { display: flex; }
+.overlay-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(28px, 8vw, 42px); }
+
+/* ═══════════════════════
+   CRATE & COIN SPECIFIC
+═══════════════════════ */
+.crate-display { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 16px; position: relative; overflow: hidden; min-height: 240px; justify-content: center; }
+.reel-viewport { width: 100%; overflow: hidden; border-radius: 8px; position: relative; height: 100px; border: 1px solid var(--border); }
+.reel-track { display: flex; align-items: center; gap: 6px; padding: 8px 6px; }
+.reel-item { flex-shrink: 0; width: 84px; height: 84px; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 32px; background: var(--panel); }
+
+.coin-arena { display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); min-height: 200px; justify-content: center; }
+.coin { width: 100px; height: 100px; position: relative; transform-style: preserve-3d; }
+.coin-face { position: absolute; inset: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 42px; border: 3px solid; backface-visibility: hidden; }
+.coin-tails { transform: rotateY(180deg); }
+
+/* ═══════════════════════
+   MOBILE OPTIMIZATIONS
+═══════════════════════ */
+@media (max-width: 768px) {
+  .nav-btn { min-height: 44px; padding: 8px 12px; font-size: 12px; }
+  .nav-brand { font-size: 22px; }
+  .grid { gap: 4px; }
+  .cell { min-height: 44px; }
+  .page-content { padding: 12px; }
+  .panel-row { grid-template-columns: 1fr; }
+  .game-layout { display: flex !important; flex-direction: column !important; }
+}
+
+@media (min-width: 769px) {
   .game-layout { display: grid; grid-template-columns: 280px 1fr; gap: 16px; align-items: start; }
 }
 
-.game-area { display: flex; flex-direction: column; gap: var(--gap); }
-
-/* ── STATS BAR ── */
-.stats-bar { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; }
-.stat-card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
-.stat-card .s-label { font-size: 8px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; }
-.stat-card .s-value { font-family: 'Bebas Neue', sans-serif; font-size: 18px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.s-value.green { color: var(--accent); }
-.s-value.red   { color: var(--danger); }
-.s-value.gold  { color: var(--gold); }
-.s-value.purple{ color: var(--purple); }
-
-/* ═══════════════════════
-   MINES GAME
-═══════════════════════ */
-.mines-wrap { display: flex; flex-direction: column; gap: 6px; }
-.mines-slider-row { display: flex; align-items: center; gap: 10px; }
-input[type=range] {
-  flex: 1; -webkit-appearance: none; height: 6px;
-  border-radius: 3px; background: var(--border); outline: none; cursor: pointer;
+@media (hover: hover) {
+  .cell:hover:not(.no-hover) { border-color: rgba(255,255,255,0.2); background: #1e1e2a; transform: scale(1.04); }
+  .nav-btn:hover { color: var(--text); border-color: var(--border); }
 }
-input[type=range]::-webkit-slider-thumb {
-  -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%;
-  background: var(--accent); box-shadow: 0 0 8px rgba(0,229,160,0.5); cursor: pointer;
-}
-input[type=range]::-moz-range-thumb {
-  width: 22px; height: 22px; border-radius: 50%; background: var(--accent);
-  border: none; box-shadow: 0 0 8px rgba(0,229,160,0.5); cursor: pointer;
-}
-.mines-count { font-family: 'Bebas Neue', sans-serif; font-size: 26px; color: var(--danger); min-width: 32px; text-align: right; line-height: 1; }
-.mines-hint { font-size: 9px; color: var(--muted); letter-spacing: 1px; }
-.multiplier-display {
-  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
-  padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; min-height: 62px;
-}
-.mult-value { font-family: 'Bebas Neue', sans-serif; font-size: 26px; color: var(--accent); line-height: 1; }
-.mult-profit { text-align: right; }
-.mult-profit .profit-amount { font-size: 13px; color: var(--accent); font-weight: 500; }
-.mult-profit .profit-label { font-size: 9px; color: var(--muted); letter-spacing: 1px; }
-
-/* ── GRID ── */
-.grid-container { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; position: relative; }
-.grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
-@media (min-width: 700px) { .grid { gap: 8px; } .grid-container { padding: 18px; } }
-
-.cell {
-  aspect-ratio: 1; border-radius: 8px; background: var(--surface); border: 1px solid var(--border);
-  cursor: pointer; position: relative; overflow: hidden;
-  transition: background 0.1s, border-color 0.1s, transform 0.1s;
-  display: flex; align-items: center; justify-content: center;
-  font-size: clamp(18px, 5vw, 28px); min-height: 44px;
-  -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;
-}
-.cell::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, transparent 100%); border-radius: inherit; pointer-events: none; }
-@media (hover:hover) { .cell:hover:not(.no-hover) { border-color: rgba(255,255,255,0.2); background: #1e1e2a; transform: scale(1.04); } }
 .cell:active:not(.no-hover) { transform: scale(0.94); background: #1e1e2a; }
-.cell.gem { background: rgba(0,229,160,0.1); border-color: var(--accent); animation: gemReveal 0.35s cubic-bezier(0.34,1.56,0.64,1); cursor: default; }
-.cell.mine-hit { background: rgba(255,61,90,0.22); border-color: var(--danger); box-shadow: 0 0 20px rgba(255,61,90,0.4); animation: mineHit 0.45s ease forwards; cursor: default; }
-.cell.mine-hidden { background: rgba(255,61,90,0.07); border-color: rgba(255,61,90,0.3); cursor: default; animation: mineReveal 0.35s ease both; }
-.cell.safe-unrevealed { background: rgba(0,229,160,0.04); border-color: rgba(0,229,160,0.18); cursor: default; animation: fadeReveal 0.3s ease; }
-.cell.pending { animation: pendingPulse 0.7s ease-in-out infinite; }
-@keyframes pendingPulse { 0%,100%{opacity:0.6} 50%{opacity:1} }
-.cell.no-hover { cursor: default; }
-@keyframes gemReveal  { 0%{transform:scale(0.65);opacity:0} 70%{transform:scale(1.08)} 100%{transform:scale(1);opacity:1} }
-@keyframes mineHit    { 0%{transform:scale(0.7) rotate(-8deg);opacity:0} 40%{transform:scale(1.15) rotate(4deg)} 65%{transform:scale(0.95) rotate(-1deg)} 100%{transform:scale(1) rotate(0);opacity:1} }
-@keyframes mineReveal { from{transform:scale(0.8);opacity:0} to{transform:scale(1);opacity:1} }
-@keyframes fadeReveal { from{opacity:0;transform:scale(0.9)} to{opacity:1;transform:scale(1)} }
-@keyframes fadeIn { from{opacity:0} to{opacity:1} }
-
-/* ── OVERLAY ── */
-.overlay { display: none; position: absolute; inset: 0; border-radius: var(--radius); background: rgba(10,10,15,0.88); backdrop-filter: blur(4px); align-items: center; justify-content: center; flex-direction: column; gap: 6px; z-index: 10; padding: 16px; text-align: center; }
-.overlay.show { display: flex; animation: fadeIn 0.3s ease; }
-.overlay-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(28px, 8vw, 42px); letter-spacing: 4px; line-height: 1; }
-.overlay-sub { font-size: clamp(10px, 2.5vw, 13px); color: var(--muted); letter-spacing: 1px; word-break: break-all; max-width: 90%; text-align: center; }
-.dismiss-hint { display: none; position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); font-size: 10px; letter-spacing: 2px; color: var(--muted); background: rgba(10,10,15,0.75); padding: 5px 14px; border-radius: 20px; border: 1px solid var(--border); white-space: nowrap; pointer-events: none; animation: pulse 1.4s ease-in-out infinite; z-index: 11; }
-.dismiss-hint.show { display: block; }
-
-/* ═══════════════════════
-   CRATE UNBOXING
-═══════════════════════ */
-.crate-display {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 20px;
-  display: flex; flex-direction: column; align-items: center; gap: 16px;
-  position: relative; overflow: hidden; min-height: 240px; justify-content: center;
-}
-
-/* The scrolling reel */
-.reel-viewport {
-  width: 100%; overflow: hidden;
-  border-radius: 8px; position: relative; height: 100px;
-  border: 1px solid var(--border);
-}
-.reel-viewport::before,
-.reel-viewport::after {
-  content: ''; position: absolute; top: 0; bottom: 0; width: 80px; z-index: 2; pointer-events: none;
-}
-.reel-viewport::before { left: 0; background: linear-gradient(to right, var(--surface), transparent); }
-.reel-viewport::after  { right: 0; background: linear-gradient(to left, var(--surface), transparent); }
-/* center marker */
-.reel-marker {
-  position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%);
-  width: 2px; background: var(--gold); z-index: 3; box-shadow: 0 0 8px var(--gold);
-}
-
-.reel-track {
-  display: flex; align-items: center; gap: 6px;
-  padding: 8px 6px; will-change: transform;
-  transition: none; /* JS controls this */
-}
-
-.reel-item {
-  flex-shrink: 0; width: 84px; height: 84px; border-radius: 10px;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  font-size: 32px; gap: 4px; border: 2px solid transparent;
-  background: var(--panel);
-}
-.reel-item .item-name { font-size: 8px; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; text-align: center; }
-
-.reel-item.rarity-grey   { border-color: #4a4a5a; background: rgba(74,74,90,0.15); }
-.reel-item.rarity-blue   { border-color: var(--blue);   background: var(--blue-dim); }
-.reel-item.rarity-purple { border-color: var(--purple); background: var(--purple-dim); }
-.reel-item.rarity-gold   { border-color: var(--gold);   background: var(--gold-dim); }
-.reel-item.rarity-red    { border-color: var(--danger);  background: var(--danger-dim); }
-
-.crate-result {
-  display: none; flex-direction: column; align-items: center; gap: 8px;
-}
-.crate-result.show { display: flex; animation: fadeIn 0.4s ease; }
-.crate-result-icon { font-size: 56px; }
-.crate-result-name {
-  font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 3px;
-}
-.crate-result-value { font-size: 12px; color: var(--muted); letter-spacing: 2px; }
-
-.crate-items-preview {
-  display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;
-}
-.crate-item-chip {
-  display: flex; align-items: center; gap: 5px; padding: 5px 10px;
-  border-radius: 6px; border: 1px solid var(--border); font-size: 11px;
-  background: var(--surface);
-}
-
-/* ═══════════════════════
-   COINFLIP
-═══════════════════════ */
-.coin-arena {
-  display: flex; flex-direction: column; align-items: center; gap: 20px;
-  padding: 20px; background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius); min-height: 200px; justify-content: center;
-}
-
-.coin {
-  width: 100px; height: 100px; position: relative;
-  transform-style: preserve-3d; transition: transform 0.1s;
-}
-.coin.flipping { animation: coinSpin 1.2s ease-in-out forwards; }
-@keyframes coinSpin {
-  0%   { transform: rotateY(0); }
-  80%  { transform: rotateY(1440deg); }
-  100% { transform: rotateY(var(--final-rot, 1440deg)); }
-}
-.coin-face {
-  position: absolute; inset: 0; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 42px; border: 3px solid;
-  backface-visibility: hidden; -webkit-backface-visibility: hidden;
-}
-.coin-heads {
-  background: var(--gold-dim); border-color: var(--gold);
-  box-shadow: 0 0 20px rgba(245,200,66,0.3);
-}
-.coin-tails {
-  background: var(--blue-dim); border-color: var(--blue);
-  box-shadow: 0 0 20px rgba(59,130,246,0.3);
-  transform: rotateY(180deg);
-}
-
-.coin-pick {
-  display: flex; gap: 10px;
-}
-.coin-pick-btn {
-  flex: 1; padding: 14px; border-radius: 8px; border: 2px solid transparent;
-  font-family: 'Bebas Neue', sans-serif; font-size: 16px; letter-spacing: 2px;
-  cursor: pointer; transition: all 0.15s; text-align: center; min-height: 48px;
-  -webkit-tap-highlight-color: transparent;
-}
-.coin-pick-btn.heads {
-  background: var(--gold-dim); border-color: rgba(245,200,66,0.3); color: var(--gold);
-}
-.coin-pick-btn.tails {
-  background: var(--blue-dim); border-color: rgba(59,130,246,0.3); color: var(--blue);
-}
-.coin-pick-btn.selected.heads { border-color: var(--gold); box-shadow: 0 0 14px rgba(245,200,66,0.3); }
-.coin-pick-btn.selected.tails { border-color: var(--blue); box-shadow: 0 0 14px rgba(59,130,246,0.3); }
-.coin-result-label {
-  font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 4px;
-  opacity: 0; transition: opacity 0.4s; min-height: 32px;
-}
-.coin-result-label.show { opacity: 1; }
-.coin-result-label.win  { color: var(--gold); }
-.coin-result-label.lose { color: var(--danger); }
-
-/* ═══════════════════════
-   RESPONSIVE
-═══════════════════════ */
-@media (min-width: 700px) {
-  .page-content { padding: 20px; }
-  .stat-card .s-value { font-size: 22px; }
-  @media (hover:hover) {
-    .btn-nav-logout:hover { border-color: var(--danger); color: var(--danger); }
-  }
-}
-@media (max-width: 359px) {
-  .nav-brand { font-size: 22px; }
-  .grid { gap: 4px; }
-  .grid-container { padding: 10px; }
-}
 </style>
 </head>
 <body>
@@ -580,788 +280,218 @@ input[type=range]::-moz-range-thumb {
 <div id="loadingScreen"><div class="loader">LOADING...</div></div>
 <div class="toast" id="toast"></div>
 
-<!-- ═══════════ AUTH ═══════════ -->
 <div id="authScreen" class="hidden">
   <div class="auth-box">
     <div class="auth-logo">VAULT<span>.</span></div>
-    <div class="auth-subtitle">Three games · One balance · Firebase</div>
     <div class="auth-tabs">
-      <button class="auth-tab active" id="tabLogin"    onclick="switchTab('login')">LOGIN</button>
-      <button class="auth-tab"        id="tabRegister" onclick="switchTab('register')">REGISTER</button>
+      <button class="auth-tab active" id="tabLogin" onclick="switchTab('login')">LOGIN</button>
+      <button class="auth-tab" id="tabRegister" onclick="switchTab('register')">REGISTER</button>
     </div>
     <div class="auth-field" id="usernameField" style="display:none">
-      <label>Display Name</label>
-      <input class="auth-input" id="authName" type="text" placeholder="your_name" autocomplete="off" spellcheck="false" autocorrect="off" autocapitalize="none">
+      <input class="auth-input" id="authName" type="text" placeholder="Display Name">
     </div>
-    <div class="auth-field">
-      <label>Email</label>
-      <input class="auth-input" id="authEmail" type="email" placeholder="you@email.com" autocomplete="email" onkeydown="if(event.key==='Enter')handleAuth()">
-    </div>
-    <div class="auth-field">
-      <label>Password</label>
-      <input class="auth-input" id="authPass" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')handleAuth()">
-    </div>
+    <input class="auth-input" id="authEmail" type="email" placeholder="Email">
+    <input class="auth-input" id="authPass" type="password" placeholder="Password">
     <div class="auth-error" id="authError"></div>
     <button class="btn-auth" id="authBtn" onclick="handleAuth()">LOGIN</button>
-    <div class="auth-note">Balance shared across all games · Syncs to all devices</div>
   </div>
 </div>
 
-<!-- ═══════════ SITE SHELL ═══════════ -->
 <div id="siteWrapper">
-
-  <!-- NAV -->
   <nav class="nav">
     <div class="nav-brand">VAULT<span>.</span></div>
     <div class="nav-games">
-      <button class="nav-btn mines active" id="navMines" onclick="switchGame('mines')">💣 MINES</button>
-      <button class="nav-btn crate"        id="navCrate" onclick="switchGame('crate')">📦 CRATES</button>
-      <button class="nav-btn coin"         id="navCoin"  onclick="switchGame('coin')">🪙 COINFLIP</button>
+      <button class="nav-btn active" id="navMines" onclick="switchGame('mines')">💣 MINES</button>
+      <button class="nav-btn" id="navCrate" onclick="switchGame('crate')">📦 CRATES</button>
+      <button class="nav-btn" id="navCoin" onclick="switchGame('coin')">🪙 COINFLIP</button>
     </div>
     <div class="nav-user">
       <div style="text-align:right">
         <div class="nav-balance" id="navBalance">0.00</div>
-        <div class="nav-balance-label">COINS</div>
+        <div class="nav-username" id="navUser">—</div>
       </div>
-      <div class="nav-username" id="navUser">—</div>
       <button class="btn-nav-logout" onclick="logoutUser()">OUT</button>
     </div>
   </nav>
 
   <div class="page-content">
-
-    <!-- ═══════════ MINES PAGE ═══════════ -->
     <div class="game-page active" id="pageMines">
       <div class="game-layout">
-        <!-- Controls -->
         <div class="panel">
-          <div class="panel-row">
-            <div>
-              <div class="panel-label">Balance</div>
-              <div class="balance-display">
-                <div class="balance-amount" id="mBalanceAmt">0.00</div>
-                <div class="balance-label">COINS</div>
-              </div>
-            </div>
-            <div>
-              <div class="panel-label">Multiplier</div>
-              <div class="multiplier-display">
-                <div class="mult-value" id="mMultValue">1.00×</div>
-                <div class="mult-profit">
-                  <div class="profit-amount" id="mProfitAmt">+0.00</div>
-                  <div class="profit-label">PROFIT</div>
-                </div>
-              </div>
-            </div>
+          <div class="balance-display">
+            <div class="balance-amount" id="mBalanceAmt">0.00</div>
           </div>
-          <div class="bet-wrap">
-            <div class="panel-label">Bet Amount</div>
-            <div class="bet-input-row">
-              <div class="coin-icon">◈</div>
-              <input type="number" id="mBetInput" value="50" min="0.01" max="10000" step="0.01" inputmode="decimal" placeholder="0.00">
-            </div>
-            <div class="bet-quick">
-              <button onclick="mSetBet(0.5)">½</button>
-              <button onclick="mSetBet(2)">2×</button>
-              <button onclick="mSetBet(null,100)">100</button>
-              <button onclick="mSetBetMax()">MAX</button>
-            </div>
+          <div class="bet-input-row">
+            <input type="number" id="mBetInput" value="50" step="0.01">
           </div>
-          <div class="mines-wrap">
-            <div class="panel-label">Mines — <span id="mMineCountLabel" style="color:var(--danger)">3</span></div>
-            <div class="mines-slider-row">
-              <input type="range" id="mMineSlider" min="1" max="24" value="3" oninput="mUpdateMineCount(this.value)">
-              <div class="mines-count" id="mMineCountDisp">3</div>
-            </div>
-            <div class="mines-hint">More mines = higher multiplier</div>
-          </div>
-          <button class="btn btn-green" id="mStartBtn" onclick="mStartGame()">START GAME</button>
-          <button class="btn btn-gold"  id="mCashoutBtn" onclick="mCashout()">CASH OUT</button>
+          <input type="range" id="mMineSlider" min="1" max="24" value="3" oninput="mUpdateMineCount(this.value)">
+          <div id="mMultValue" style="text-align:center;font-size:24px;color:var(--accent)">1.00×</div>
+          <button class="btn btn-green" id="mStartBtn" onclick="mStartGame()">START</button>
+          <button class="btn btn-gold" id="mCashoutBtn" onclick="mCashout()">CASH OUT</button>
         </div>
-        <!-- Game area -->
-        <div class="game-area">
-          <div class="stats-bar">
-            <div class="stat-card"><div class="s-label">Gems</div><div class="s-value green" id="mGemsFound">—</div></div>
-            <div class="stat-card"><div class="s-label">Mines</div><div class="s-value red" id="mMinesLeft">—</div></div>
-            <div class="stat-card"><div class="s-label">Cash Out</div><div class="s-value gold" id="mCashoutAmt">—</div></div>
+        <div class="grid-container">
+          <div class="grid" id="mGrid"></div>
+          <div class="overlay show" id="mOverlay">
+            <div class="overlay-title">MINES</div>
+            <button class="btn btn-green" style="width:auto;padding:10px 30px" onclick="mStartGame()">PLAY</button>
           </div>
-          <div class="grid-container" id="mGridContainer">
-            <div class="grid" id="mGrid"></div>
-            <div class="dismiss-hint" id="mDismissHint">TAP ANYWHERE TO CONTINUE</div>
-            <div class="overlay show" id="mOverlay">
-              <div class="overlay-title" id="mOverlayTitle" style="color:var(--accent)">MINES</div>
-              <div class="overlay-sub"   id="mOverlaySub">Set your bet and tap start</div>
-            </div>
-          </div>
-          <div class="history" id="mHistory"><span class="history-label">History</span></div>
         </div>
       </div>
-    </div><!-- /pageMines -->
+    </div>
 
-    <!-- ═══════════ CRATE PAGE ═══════════ -->
     <div class="game-page" id="pageCrate">
       <div class="game-layout">
-        <!-- Controls -->
         <div class="panel">
-          <div>
-            <div class="panel-label">Balance</div>
-            <div class="balance-display">
-              <div class="balance-amount" id="cBalanceAmt">0.00</div>
-              <div class="balance-label">COINS</div>
-            </div>
-          </div>
-          <div class="bet-wrap">
-            <div class="panel-label">Crate Cost</div>
-            <div class="bet-input-row">
-              <div class="coin-icon">◈</div>
-              <input type="number" id="cBetInput" value="100" min="1" max="10000" step="1" inputmode="decimal" placeholder="0.00">
-            </div>
-            <div class="bet-quick">
-              <button onclick="cSetBet(0.5)">½</button>
-              <button onclick="cSetBet(2)">2×</button>
-              <button onclick="cSetBet(null,100)">100</button>
-              <button onclick="cSetBetMax()">MAX</button>
-            </div>
-          </div>
-          <div>
-            <div class="panel-label">Drop Rates</div>
-            <div style="display:flex;flex-direction:column;gap:5px;margin-top:2px">
-              <div class="crate-item-chip"><span>⬛</span><span style="color:var(--muted)">Common</span><span style="margin-left:auto;color:var(--muted)">50%</span></div>
-              <div class="crate-item-chip"><span>🟦</span><span style="color:var(--blue)">Rare</span><span style="margin-left:auto;color:var(--muted)">25%</span></div>
-              <div class="crate-item-chip"><span>🟪</span><span style="color:var(--purple)">Epic</span><span style="margin-left:auto;color:var(--muted)">15%</span></div>
-              <div class="crate-item-chip"><span>🟨</span><span style="color:var(--gold)">Legendary</span><span style="margin-left:auto;color:var(--muted)">8%</span></div>
-              <div class="crate-item-chip"><span>🟥</span><span style="color:var(--danger)">Ancient</span><span style="margin-left:auto;color:var(--muted)">2%</span></div>
-            </div>
-          </div>
+          <div class="balance-display"><div class="balance-amount" id="cBalanceAmt">0.00</div></div>
+          <div class="bet-input-row"><input type="number" id="cBetInput" value="100"></div>
           <button class="btn btn-purple" id="cOpenBtn" onclick="cOpenCrate()">OPEN CRATE</button>
         </div>
-        <!-- Crate area -->
-        <div class="game-area">
-          <div class="stats-bar">
-            <div class="stat-card"><div class="s-label">Last Win</div><div class="s-value gold" id="cLastWin">—</div></div>
-            <div class="stat-card"><div class="s-label">Best</div><div class="s-value purple" id="cBestWin">—</div></div>
-            <div class="stat-card"><div class="s-label">Opens</div><div class="s-value green" id="cOpens">0</div></div>
-          </div>
-          <div class="crate-display" id="crateDisplay">
-            <div style="text-align:center;color:var(--muted);font-size:13px;letter-spacing:2px">
-              <div style="font-size:48px;margin-bottom:8px">📦</div>
-              SET BET AND OPEN A CRATE
-            </div>
-          </div>
-          <div class="history" id="cHistory"><span class="history-label">History</span></div>
-        </div>
+        <div class="crate-display" id="crateDisplay">📦 READY</div>
       </div>
-    </div><!-- /pageCrate -->
+    </div>
 
-    <!-- ═══════════ COINFLIP PAGE ═══════════ -->
     <div class="game-page" id="pageCoin">
       <div class="game-layout">
-        <!-- Controls -->
         <div class="panel">
-          <div>
-            <div class="panel-label">Balance</div>
-            <div class="balance-display">
-              <div class="balance-amount" id="flBalanceAmt">0.00</div>
-              <div class="balance-label">COINS</div>
-            </div>
+          <div class="balance-display"><div class="balance-amount" id="flBalanceAmt">0.00</div></div>
+          <div class="bet-input-row"><input type="number" id="flBetInput" value="50"></div>
+          <div style="display:flex;gap:10px">
+            <button class="btn" id="flPickHeads" onclick="flPick('heads')" style="background:var(--gold-dim);color:var(--gold)">HEADS</button>
+            <button class="btn" id="flPickTails" onclick="flPick('tails')" style="background:var(--blue-dim);color:var(--blue)">TAILS</button>
           </div>
-          <div class="bet-wrap">
-            <div class="panel-label">Bet Amount</div>
-            <div class="bet-input-row">
-              <div class="coin-icon">◈</div>
-              <input type="number" id="flBetInput" value="50" min="0.01" max="10000" step="0.01" inputmode="decimal" placeholder="0.00">
-            </div>
-            <div class="bet-quick">
-              <button onclick="flSetBet(0.5)">½</button>
-              <button onclick="flSetBet(2)">2×</button>
-              <button onclick="flSetBet(null,100)">100</button>
-              <button onclick="flSetBetMax()">MAX</button>
-            </div>
-          </div>
-          <div>
-            <div class="panel-label">Pick Side</div>
-            <div class="coin-pick">
-              <button class="coin-pick-btn heads selected" id="flPickHeads" onclick="flPick('heads')">🌕 HEADS</button>
-              <button class="coin-pick-btn tails"          id="flPickTails" onclick="flPick('tails')">🌑 TAILS</button>
-            </div>
-          </div>
-          <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px">
-            <div class="panel-label">Payout</div>
-            <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--accent)">1.94× <span style="font-size:12px;color:var(--muted);font-family:'DM Mono',monospace">(3% edge)</span></div>
-          </div>
-          <button class="btn btn-green" id="flFlipBtn" onclick="flFlip()">FLIP COIN</button>
+          <button class="btn btn-green" id="flFlipBtn" onclick="flFlip()">FLIP</button>
         </div>
-        <!-- Coin area -->
-        <div class="game-area">
-          <div class="stats-bar">
-            <div class="stat-card"><div class="s-label">Wins</div><div class="s-value green" id="flWins">0</div></div>
-            <div class="stat-card"><div class="s-label">Losses</div><div class="s-value red" id="flLosses">0</div></div>
-            <div class="stat-card"><div class="s-label">Streak</div><div class="s-value gold" id="flStreak">0</div></div>
+        <div class="coin-arena">
+          <div class="coin" id="flCoin">
+            <div class="coin-face" style="background:var(--gold-dim);border-color:var(--gold)">🌕</div>
+            <div class="coin-face coin-tails" style="background:var(--blue-dim);border-color:var(--blue)">🌑</div>
           </div>
-          <div class="coin-arena">
-            <div class="coin" id="flCoin">
-              <div class="coin-face coin-heads">🌕</div>
-              <div class="coin-face coin-tails">🌑</div>
-            </div>
-            <div class="coin-result-label" id="flResultLabel"></div>
-          </div>
-          <div class="history" id="flHistory"><span class="history-label">History</span></div>
         </div>
       </div>
-    </div><!-- /pageCoin -->
-
-  </div><!-- /page-content -->
-</div><!-- /siteWrapper -->
+    </div>
+  </div>
+</div>
 
 <script>
-// ══════════════════════════════════════════════════════════════
-//  SHARED STATE
-// ══════════════════════════════════════════════════════════════
-let currentUser = null;
-let balance     = 0;       // integer cents, shared across all games
-let currentTab  = 'login';
-let fbReady     = false;
-let currentGame = 'mines';
+let currentUser = null, balance = 0, currentTab = 'login', currentGame = 'mines';
 
-function coinsToCents(c) { return Math.round(c * 100); }
-function centsToCoins(c) { return c / 100; }
-function fmtCoins(cents) {
-  return (cents/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-}
+const coinsToCents = (c) => Math.round(c * 100);
+const fmtCoins = (cents) => (cents/100).toLocaleString('en-US',{minimumFractionDigits:2});
 
-// Update ALL balance displays across every game
 function updateAllBalances() {
   const f = fmtCoins(balance);
-  document.getElementById('mBalanceAmt').textContent  = f;
-  document.getElementById('cBalanceAmt').textContent  = f;
-  document.getElementById('flBalanceAmt').textContent = f;
-  document.getElementById('navBalance').textContent   = f;
+  ['mBalanceAmt','cBalanceAmt','flBalanceAmt','navBalance'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.textContent = f;
+  });
 }
 
-function showToast(msg, type) {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.className = 'toast ' + type + ' show';
-  clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('show'), 2600);
-}
-
-// ── NAV ──────────────────────────────────────────────────────
 function switchGame(name) {
   currentGame = name;
   ['mines','crate','coin'].forEach(g => {
-    document.getElementById('nav' + g.charAt(0).toUpperCase() + g.slice(1))
-      .classList.toggle('active', g === name);
-    document.getElementById('page' + g.charAt(0).toUpperCase() + g.slice(1))
-      .classList.toggle('active', g === name);
+    const btn = document.getElementById('nav' + g.charAt(0).toUpperCase() + g.slice(1));
+    const page = document.getElementById('page' + g.charAt(0).toUpperCase() + g.slice(1));
+    if(btn) btn.classList.toggle('active', g === name);
+    if(page) page.classList.toggle('active', g === name);
   });
+  window.scrollTo(0,0);
 }
 
-// ── AUTH ──────────────────────────────────────────────────────
-window._onFirebaseUser = function(data) {
-  currentUser = data;
-  balance = data.balanceCents != null ? data.balanceCents : coinsToCents(data.balance || 1000);
-  fbReady = true;
+// AUTH HANDLERS
+window._onFirebaseUser = (data) => {
+  currentUser = data; balance = data.balanceCents || 100000;
   document.getElementById('loadingScreen').classList.add('hidden');
-  loadAllHistory(currentUser.history || []);
-  if (data.pendingGame) mRecoverPendingGame(data.pendingGame);
-  else enterSite();
-};
-window._showAuth = function() {
-  fbReady = true;
-  document.getElementById('loadingScreen').classList.add('hidden');
-  document.getElementById('authScreen').classList.remove('hidden');
-};
-
-function switchTab(tab) {
-  currentTab = tab;
-  document.getElementById('tabLogin').classList.toggle('active', tab==='login');
-  document.getElementById('tabRegister').classList.toggle('active', tab==='register');
-  document.getElementById('authBtn').textContent = tab==='login' ? 'LOGIN' : 'CREATE ACCOUNT';
-  document.getElementById('usernameField').style.display = tab==='register' ? 'flex' : 'none';
-  document.getElementById('authError').textContent = '';
-}
-
-async function handleAuth() {
-  const email = document.getElementById('authEmail').value.trim();
-  const pass  = document.getElementById('authPass').value;
-  const name  = document.getElementById('authName').value.trim();
-  const errEl = document.getElementById('authError');
-  const btn   = document.getElementById('authBtn');
-  errEl.textContent = '';
-  if (!email||!email.includes('@'))  { errEl.textContent='ENTER A VALID EMAIL'; return; }
-  if (!pass||pass.length<6)          { errEl.textContent='PASSWORD MUST BE 6+ CHARACTERS'; return; }
-  if (currentTab==='register'&&(!name||name.length<2)) { errEl.textContent='ENTER A DISPLAY NAME'; return; }
-  btn.disabled=true; btn.textContent='...';
-  try {
-    if (currentTab==='register') {
-      currentUser = await window._fb.register(email,pass,name);
-      balance = currentUser.balanceCents??coinsToCents(1000);
-      showToast('WELCOME, '+name.toUpperCase()+'!','info');
-    } else {
-      currentUser = await window._fb.login(email,pass);
-      balance = currentUser.balanceCents??coinsToCents(currentUser.balance||1000);
-      showToast('WELCOME BACK!','info');
-    }
-    loadAllHistory(currentUser.history||[]);
-    if (currentUser.pendingGame) mRecoverPendingGame(currentUser.pendingGame);
-    else enterSite();
-  } catch(e) {
-    const code=e.code||'';
-    errEl.textContent=(
-      code==='auth/user-not-found'      ?'ACCOUNT NOT FOUND':
-      code==='auth/wrong-password'       ?'INCORRECT PASSWORD':
-      code==='auth/invalid-credential'   ?'INVALID EMAIL OR PASSWORD':
-      code==='auth/email-already-in-use' ?'EMAIL ALREADY REGISTERED':
-      code==='auth/too-many-requests'    ?'TOO MANY ATTEMPTS — TRY LATER':
-      (e.message||'SOMETHING WENT WRONG').toUpperCase()
-    );
-  }
-  btn.disabled=false;
-  btn.textContent=currentTab==='login'?'LOGIN':'CREATE ACCOUNT';
-}
-
-function enterSite() {
   document.getElementById('authScreen').classList.add('hidden');
-  document.getElementById('siteWrapper').style.display='flex';
-  document.getElementById('navUser').textContent=(currentUser.username||currentUser.email||'—').toUpperCase();
+  document.getElementById('siteWrapper').style.display = 'flex';
+  document.getElementById('navUser').textContent = data.username.toUpperCase();
   updateAllBalances();
   mRenderGrid();
-}
+};
 
-async function logoutUser() {
-  if (mGameActive && mGameId) {
-    const gid=mGameId; mGameActive=false; mGameId=null;
-    window._fb.bust(gid).catch(()=>{});
-  }
-  await window._fb.logout();
-  currentUser=null; balance=0; mGameActive=false; mGameId=null; mMineIndices=null; mPendingCell=-1;
-  document.getElementById('siteWrapper').style.display='none';
+window._showAuth = () => {
+  document.getElementById('loadingScreen').classList.add('hidden');
   document.getElementById('authScreen').classList.remove('hidden');
-  document.getElementById('authEmail').value=document.getElementById('authPass').value='';
-  document.getElementById('authError').textContent='';
-  ['mHistory','cHistory','flHistory'].forEach(id=>{
-    document.getElementById(id).innerHTML='<span class="history-label">History</span>';
-  });
-}
+};
 
-async function saveUserMeta(extra={}) {
-  if (!currentUser) return;
+async function handleAuth() {
+  const email = document.getElementById('authEmail').value, pass = document.getElementById('authPass').value;
   try {
-    await window._fb.saveUserMeta(currentUser.uid,{
-      gamesPlayed:currentUser.gamesPlayed,
-      history:currentUser.history,...extra
-    });
-  } catch(e){console.warn('Meta save failed:',e);}
+    if(currentTab === 'register') await window._fb.register(email, pass, document.getElementById('authName').value);
+    else await window._fb.login(email, pass);
+  } catch(e) { document.getElementById('authError').textContent = e.message.toUpperCase(); }
 }
 
-// Load history into all three tabs
-function loadAllHistory(hist) {
-  ['mHistory','cHistory','flHistory'].forEach(id=>{
-    document.getElementById(id).innerHTML='<span class="history-label">History</span>';
-  });
-  [...hist].slice(0,10).reverse().forEach(item=>{
-    const cents=item.amountCents??coinsToCents(item.amount||0);
-    const badge=makeBadge(item.won,cents);
-    // Add to relevant game history
-    const gameId=item.game||'mines';
-    const histEl=document.getElementById(
-      gameId==='crate'?'cHistory':gameId==='coin'?'flHistory':'mHistory'
-    );
-    const all=histEl.querySelectorAll('.history-badge');
-    if(all.length>=10) all[all.length-1].remove();
-    histEl.insertBefore(badge,histEl.children[1]);
-  });
+function switchTab(t) {
+  currentTab = t;
+  document.getElementById('tabLogin').classList.toggle('active', t==='login');
+  document.getElementById('tabRegister').classList.toggle('active', t==='register');
+  document.getElementById('usernameField').style.display = t==='register' ? 'block' : 'none';
 }
 
-function makeBadge(won,amountCents) {
-  const b=document.createElement('span');
-  b.className='history-badge '+(won?'win':'lose');
-  b.textContent=(won?'+':'−')+'◈'+fmtCoins(amountCents);
-  return b;
-}
-function addHistoryBadge(histElId,won,amountCents) {
-  const h=document.getElementById(histElId);
-  const b=makeBadge(won,amountCents);
-  const all=h.querySelectorAll('.history-badge');
-  if(all.length>=10) all[all.length-1].remove();
-  h.insertBefore(b,h.children[1]);
-  // Persist to currentUser history
-  if(currentUser){
-    currentUser.gamesPlayed=(currentUser.gamesPlayed||0)+1;
-    currentUser.history=[
-      {won,amountCents,game:histElId==='cHistory'?'crate':histElId==='flHistory'?'coin':'mines',ts:Date.now()},
-      ...(currentUser.history||[])
-    ].slice(0,20);
-    document.getElementById('navUser').textContent=(currentUser.username||'').toUpperCase();
-    saveUserMeta({pendingGame:null});
-  }
-}
-
-// ════════════════════════════════════════════════════════════
-//  MINES GAME
-// ════════════════════════════════════════════════════════════
-const M_GRID = 25;
-let mGameId   = null, mSeedHash=null, mMineIndices=null;
-let mRevealed = new Set(), mRevealedIsMine = new Map();
-let mPendingCell=-1, mGameActive=false, mCurrentBet=0, mCurrentMines=3, mGemsCount=0;
-
-function mCalcMult(revealed,mines) {
-  if(revealed===0)return'1.00';
-  const safe=M_GRID-mines; let num=1,den=1;
-  for(let i=0;i<revealed;i++){num*=(M_GRID-i);den*=(safe-i);}
-  return((num/den)*0.97).toFixed(2);
-}
-function mUpdateMineCount(v){
-  mCurrentMines=parseInt(v);
-  document.getElementById('mMineCountDisp').textContent=v;
-  document.getElementById('mMineCountLabel').textContent=v;
-}
-function mUpdateMultUI(){
-  const m=mCalcMult(mGemsCount,mCurrentMines);
-  const bet=centsToCoins(mCurrentBet);
-  document.getElementById('mMultValue').textContent=m+'×';
-  document.getElementById('mProfitAmt').textContent='+'+(parseFloat(m)*bet-bet).toFixed(2);
-  document.getElementById('mGemsFound').textContent=mGemsCount;
-  document.getElementById('mCashoutAmt').textContent=
-    mGemsCount>0?fmtCoins(Math.floor(mCurrentBet*parseFloat(m))):'—';
-}
-function mSetBet(mult,fixed){
-  const inp=document.getElementById('mBetInput');
-  const cur=parseFloat(inp.value)||0;
-  inp.value=fixed!==undefined?fixed:Math.max(0.01,parseFloat((cur*mult).toFixed(2)));
-}
-function mSetBetMax(){document.getElementById('mBetInput').value=centsToCoins(balance).toFixed(2);}
-
-function mRenderGrid(mode='normal',pendingIdx=-1){
-  const grid=document.getElementById('mGrid'); grid.innerHTML='';
-  for(let i=0;i<M_GRID;i++){
-    const cell=document.createElement('div'); cell.className='cell';
-    if(i===pendingIdx){
-      cell.classList.add('gem','pending','no-hover');
-      cell.innerHTML='<span style="filter:drop-shadow(0 0 5px var(--accent));opacity:0.7">💎</span>';
-    } else if(mRevealed.has(i)){
-      cell.classList.add('no-hover');
-      if(mRevealedIsMine.get(i)){cell.classList.add('mine-hit');cell.textContent='💣';}
-      else{cell.classList.add('gem');cell.innerHTML='<span style="filter:drop-shadow(0 0 5px var(--accent))">💎</span>';}
-    } else if((mode==='loss'||mode==='cashout')&&mMineIndices){
-      cell.classList.add('no-hover');
-      if(mMineIndices.includes(i)){
-        cell.classList.add('mine-hidden');
-        cell.style.animationDelay=(mMineIndices.indexOf(i)*60)+'ms';
-        cell.textContent='💣';
-        if(mode==='cashout')cell.style.opacity='0.5';
-      } else {cell.classList.add('safe-unrevealed');cell.innerHTML='<span style="opacity:0.2">💎</span>';}
+// MINES LOGIC
+let mGameActive = false, mRevealed = new Set(), mMineIndices = null, mGameId = null;
+function mRenderGrid() {
+  const g = document.getElementById('mGrid'); g.innerHTML = '';
+  for(let i=0; i<25; i++) {
+    const c = document.createElement('div'); c.className = 'cell';
+    if(mRevealed.has(i)) {
+        c.classList.add('no-hover', mMineIndices?.includes(i) ? 'mine-hit' : 'gem');
+        c.textContent = mMineIndices?.includes(i) ? '💣' : '💎';
     } else {
-      if(mGameActive&&pendingIdx===-1) cell.addEventListener('click',()=>mRevealCell(i));
-      else cell.classList.add('no-hover');
+        c.onclick = () => mRevealCell(i);
     }
-    grid.appendChild(cell);
+    g.appendChild(c);
   }
 }
 
-async function mStartGame(){
-  const betCoins=parseFloat(document.getElementById('mBetInput').value);
-  if(isNaN(betCoins)||betCoins<=0){showToast('INVALID BET','lose');return;}
-  const betCents=coinsToCents(betCoins);
-  if(betCents>balance){showToast('INSUFFICIENT FUNDS','lose');return;}
-  if(betCents<1){showToast('MINIMUM BET IS 0.01','lose');return;}
-  const btn=document.getElementById('mStartBtn');
-  btn.disabled=true;btn.textContent='STARTING...';
-  let result;
-  try{result=await window._fb.startGame(betCents,mCurrentMines);}
-  catch(e){showToast((e.message||'SERVER ERROR').toUpperCase(),'lose');btn.disabled=false;btn.textContent='START GAME';return;}
-  mGameId=result.gameId; mSeedHash=result.seedHash; balance=result.newBalanceCents;
-  mCurrentBet=betCents; mMineIndices=null; mPendingCell=-1;
-  mRevealed.clear(); mRevealedIsMine.clear(); mGemsCount=0; mGameActive=true;
-  updateAllBalances();
-  document.getElementById('mMineSlider').disabled=true;
-  document.getElementById('mBetInput').disabled=true;
-  btn.disabled=true; btn.textContent='START GAME';
-  document.getElementById('mCashoutBtn').classList.add('visible');
-  document.getElementById('mMinesLeft').textContent=mCurrentMines;
-  document.getElementById('mOverlay').classList.remove('show');
-  mRenderGrid('normal'); mUpdateMultUI();
-}
-
-async function mRevealCell(index){
-  if(!mGameActive||mRevealed.has(index)||mPendingCell!==-1)return;
-  mPendingCell=index; mRenderGrid('normal',mPendingCell);
-  let result;
-  try{result=await window._fb.revealCell(mGameId,index);}
-  catch(e){mPendingCell=-1;mRenderGrid('normal');showToast('CONNECTION ERROR — TRY AGAIN','lose');return;}
-  mPendingCell=-1;
-  if(result.isMine){
-    mRevealed.add(index); mRevealedIsMine.set(index,true); mMineIndices=result.mineIndices;
-    mRenderGrid('normal'); setTimeout(()=>mRenderGrid('loss'),150);
-    mShowEndScreen(false,0,result.serverSeed);
-  } else {
-    mRevealed.add(index); mRevealedIsMine.set(index,false); mGemsCount++;
-    mRenderGrid('normal'); mUpdateMultUI();
-    if(result.done) mDoCashout();
-  }
-}
-
-async function mCashout(){
-  if(!mGameActive||mGemsCount===0){if(mGemsCount===0)showToast('REVEAL A GEM FIRST','lose');return;}
-  mDoCashout();
-}
-async function mDoCashout(){
-  mGameActive=false; mPendingCell=-1;
-  const gid=mGameId; const gemsAtCashout=mGemsCount; mGameId=null;
-  document.getElementById('mCashoutBtn').classList.remove('visible');
-  document.getElementById('mMineSlider').disabled=false;
-  document.getElementById('mBetInput').disabled=false;
-  document.getElementById('mStartBtn').disabled=false;
-  const localMult=parseFloat(mCalcMult(gemsAtCashout,mCurrentMines));
-  const localPayout=Math.floor(mCurrentBet*localMult);
-  mMineIndices=null; mRenderGrid('normal');
-  let winAmt=localPayout;
-  try{
-    const r=await window._fb.cashout(gid);
-    balance=r.newBalanceCents; mMineIndices=r.mineIndices; winAmt=r.winCents;
-  }catch(e){
-    console.warn('Cashout failed, using local:',e);
-    balance+=localPayout; mMineIndices=[];
-  }
-  updateAllBalances(); mRenderGrid('cashout'); mShowEndScreen(true,winAmt,null);
-}
-
-function mShowEndScreen(won,amountCents,serverSeed){
-  document.getElementById('mMinesLeft').textContent='—';
-  document.getElementById('mCashoutAmt').textContent='—';
-  document.getElementById('mGemsFound').textContent='—';
-  document.getElementById('mMultValue').textContent='1.00×';
-  document.getElementById('mProfitAmt').textContent='+0.00';
-  const title=document.getElementById('mOverlayTitle');
-  const sub=document.getElementById('mOverlaySub');
-  if(won){
-    const m=mCalcMult(mGemsCount,mCurrentMines);
-    title.textContent='+ '+fmtCoins(amountCents); title.style.color='var(--gold)';
-    sub.textContent=m+'× — '+mGemsCount+' gem'+(mGemsCount!==1?'s':'')+' found';
-    showToast('CASHED OUT  ◈'+fmtCoins(amountCents),'win');
-    addHistoryBadge('mHistory',true,amountCents);
-    setTimeout(()=>document.getElementById('mOverlay').classList.add('show'),400);
-  } else {
-    title.textContent='BOOM!'; title.style.color='var(--danger)';
-    sub.textContent='Tap anywhere to continue'+(serverSeed?' · Seed: '+serverSeed.slice(0,16)+'…':'');
-    showToast('MINE HIT  −◈'+fmtCoins(mCurrentBet),'lose');
-    addHistoryBadge('mHistory',false,mCurrentBet);
-    const hint=document.getElementById('mDismissHint');
-    setTimeout(()=>hint.classList.add('show'),900);
-    const gc=document.getElementById('mGridContainer');
-    function onDismiss(){
-      gc.removeEventListener('click',onDismiss); gc.removeEventListener('touchend',onDismiss);
-      hint.classList.remove('show'); mMineIndices=null; mRevealed.clear(); mRevealedIsMine.clear();
-      mRenderGrid('normal');
-      document.getElementById('mOverlay').classList.add('show');
-      document.getElementById('mOverlayTitle').textContent='MINES';
-      document.getElementById('mOverlayTitle').style.color='var(--accent)';
-      document.getElementById('mOverlaySub').textContent='Set your bet and tap start';
-    }
-    setTimeout(()=>{gc.addEventListener('click',onDismiss);gc.addEventListener('touchend',onDismiss,{passive:true});},950);
-  }
-}
-
-async function mRecoverPendingGame(pending){
-  try{const r=await window._fb.bust(pending.gameId);balance=r.newBalanceCents;showToast('BET REFUNDED — PAGE REFRESHED','info');}
-  catch(_){const f=await window._fb.getUserData(currentUser.uid);if(f)balance=f.balanceCents;}
-  await saveUserMeta({pendingGame:null}); enterSite();
-}
-
-// ════════════════════════════════════════════════════════════
-//  CRATE GAME
-// ════════════════════════════════════════════════════════════
-const CRATE_ITEMS = [
-  // { name, icon, rarity, multiplier, weight }
-  {name:'Scrap Metal',    icon:'🔧', rarity:'grey',   mult:0.2,  weight:20},
-  {name:'Worn Boots',     icon:'👟', rarity:'grey',   mult:0.3,  weight:15},
-  {name:'Rusty Key',      icon:'🗝️', rarity:'grey',   mult:0.4,  weight:15},
-  {name:'Silver Coin',    icon:'💿', rarity:'blue',   mult:0.8,  weight:10},
-  {name:'Glowing Shard',  icon:'💎', rarity:'blue',   mult:1.2,  weight:8},
-  {name:'Magic Scroll',   icon:'📜', rarity:'blue',   mult:1.5,  weight:7},
-  {name:'Dragon Scale',   icon:'🐉', rarity:'purple', mult:2.5,  weight:6},
-  {name:'Storm Crystal',  icon:'⚡', rarity:'purple', mult:3.0,  weight:5},
-  {name:'Shadow Blade',   icon:'🗡️', rarity:'purple', mult:3.5,  weight:4},
-  {name:'Golden Idol',    icon:'🏆', rarity:'gold',   mult:5.0,  weight:3},
-  {name:'Star Fragment',  icon:'⭐', rarity:'gold',   mult:7.0,  weight:2},
-  {name:'Divine Crown',   icon:'👑', rarity:'gold',   mult:10.0, weight:1.5},
-  {name:'Inferno Core',   icon:'🔥', rarity:'red',    mult:15.0, weight:0.8},
-  {name:'Void Catalyst',  icon:'🌌', rarity:'red',    mult:25.0, weight:0.5},
-  {name:'Ancient Relic',  icon:'🌟', rarity:'red',    mult:50.0, weight:0.2},
-];
-
-const CRATE_TOTAL_WEIGHT = CRATE_ITEMS.reduce((s,i)=>s+i.weight,0);
-let cOpens=0, cBestCents=0;
-
-function cSetBet(mult,fixed){
-  const inp=document.getElementById('cBetInput');
-  const cur=parseFloat(inp.value)||0;
-  inp.value=fixed!==undefined?fixed:Math.max(1,Math.floor(cur*mult));
-}
-function cSetBetMax(){document.getElementById('cBetInput').value=centsToCoins(balance).toFixed(0);}
-
-function cPickItem(rng) {
-  let acc=0;
-  for(const item of CRATE_ITEMS){
-    acc+=item.weight/CRATE_TOTAL_WEIGHT;
-    if(rng<acc)return item;
-  }
-  return CRATE_ITEMS[CRATE_ITEMS.length-1];
-}
-
-// Build a long reel that ends on the winning item
-function cBuildReel(winItem) {
-  const track=document.createElement('div'); track.className='reel-track'; track.id='cReelTrack';
-  const pool=[...CRATE_ITEMS,...CRATE_ITEMS,...CRATE_ITEMS,...CRATE_ITEMS,...CRATE_ITEMS];
-  // Shuffle pool
-  for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
-  // 40 prefix items + win item at index 40 + 10 suffix
-  const reel=[...pool.slice(0,40),winItem,...pool.slice(40,50)];
-  reel.forEach(item=>{
-    const el=document.createElement('div');
-    el.className=`reel-item rarity-${item.rarity}`;
-    el.innerHTML=`<span>${item.icon}</span><span class="item-name">${item.name}</span>`;
-    track.appendChild(el);
-  });
-  return track;
-}
-
-async function cOpenCrate(){
-  const betCoins=parseFloat(document.getElementById('cBetInput').value);
-  if(isNaN(betCoins)||betCoins<1){showToast('MINIMUM CRATE COST IS 1','lose');return;}
-  const betCents=coinsToCents(betCoins);
-  if(betCents>balance){showToast('INSUFFICIENT FUNDS','lose');return;}
-  const btn=document.getElementById('cOpenBtn');
-  btn.disabled=true; btn.textContent='OPENING...';
-
-  let result;
+async function mStartGame() {
+  const bet = coinsToCents(document.getElementById('mBetInput').value);
+  const mines = parseInt(document.getElementById('mMineSlider').value);
   try {
-    result = await window._fb.simpleGame('crate', betCents, null);
-  } catch(e) {
-    showToast((e.message||'SERVER ERROR').toUpperCase(),'lose');
-    btn.disabled=false; btn.textContent='OPEN CRATE'; return;
-  }
-
-  balance = result.newBalanceCents;
-  updateAllBalances();
-
-  // Pick item based on server-provided roll (0-1 float)
-  const serverRoll = result.roll; // server returns deterministic roll
-  const wonItem = cPickItem(serverRoll);
-  const winCents = Math.floor(betCents * wonItem.mult);
-
-  // Build and animate the reel
-  const display = document.getElementById('crateDisplay');
-  display.innerHTML = '';
-  const viewport = document.createElement('div'); viewport.className='reel-viewport';
-  const marker   = document.createElement('div'); marker.className='reel-marker';
-  const track    = cBuildReel(wonItem);
-  viewport.appendChild(marker); viewport.appendChild(track);
-  display.appendChild(viewport);
-
-  // Animate: scroll so item 40 (win) is centred
-  const itemW = 84+6; // width + gap
-  const targetX = -(40 * itemW) + (viewport.clientWidth/2) - 42;
-  // Start position (far left)
-  track.style.transform='translateX(0)';
-  // Use CSS transition for smooth decelerate spin
-  requestAnimationFrame(()=>{
-    requestAnimationFrame(()=>{
-      track.style.transition='transform 3s cubic-bezier(0.12,0.8,0.4,1)';
-      track.style.transform=`translateX(${targetX}px)`;
-    });
-  });
-
-  // After spin, show result
-  setTimeout(()=>{
-    display.innerHTML='';
-    const resultDiv=document.createElement('div'); resultDiv.className='crate-result show';
-    resultDiv.innerHTML=`
-      <div class="crate-result-icon">${wonItem.icon}</div>
-      <div class="crate-result-name" style="color:var(--${wonItem.rarity==='grey'?'muted':wonItem.rarity==='blue'?'blue':wonItem.rarity==='purple'?'purple':wonItem.rarity==='gold'?'gold':'danger'})">${wonItem.name}</div>
-      <div class="crate-result-value">◈ ${fmtCoins(winCents)} (${wonItem.mult}×)</div>
-    `;
-    display.appendChild(resultDiv);
-    // Update stats
-    cOpens++; document.getElementById('cOpens').textContent=cOpens;
-    document.getElementById('cLastWin').textContent=fmtCoins(winCents);
-    if(winCents>cBestCents){cBestCents=winCents;document.getElementById('cBestWin').textContent=fmtCoins(winCents);}
-    const won=winCents>=betCents;
-    if(won)showToast('WON  ◈'+fmtCoins(winCents),'win');
-    else   showToast('GOT '+wonItem.name+' (◈'+fmtCoins(winCents)+')','lose');
-    addHistoryBadge('cHistory',won,winCents);
-    btn.disabled=false; btn.textContent='OPEN CRATE';
-  },3200);
+    const r = await window._fb.startGame(bet, mines);
+    mGameId = r.gameId; balance = r.newBalanceCents; mGameActive = true;
+    mRevealed.clear(); mMineIndices = null;
+    document.getElementById('mOverlay').classList.remove('show');
+    document.getElementById('mCashoutBtn').classList.add('visible');
+    updateAllBalances(); mRenderGrid();
+  } catch(e) { alert(e.message); }
 }
 
-// ════════════════════════════════════════════════════════════
-//  COINFLIP GAME
-// ════════════════════════════════════════════════════════════
-let flChoice='heads', flWins=0, flLosses=0, flStreak=0, flFlipping=false;
-
-function flPick(side){
-  flChoice=side;
-  document.getElementById('flPickHeads').classList.toggle('selected',side==='heads');
-  document.getElementById('flPickTails').classList.toggle('selected',side==='tails');
-}
-function flSetBet(mult,fixed){
-  const inp=document.getElementById('flBetInput');
-  const cur=parseFloat(inp.value)||0;
-  inp.value=fixed!==undefined?fixed:Math.max(0.01,parseFloat((cur*mult).toFixed(2)));
-}
-function flSetBetMax(){document.getElementById('flBetInput').value=centsToCoins(balance).toFixed(2);}
-
-async function flFlip(){
-  if(flFlipping)return;
-  const betCoins=parseFloat(document.getElementById('flBetInput').value);
-  if(isNaN(betCoins)||betCoins<=0){showToast('INVALID BET','lose');return;}
-  const betCents=coinsToCents(betCoins);
-  if(betCents>balance){showToast('INSUFFICIENT FUNDS','lose');return;}
-  flFlipping=true;
-  const btn=document.getElementById('flFlipBtn'); btn.disabled=true;
-  const lbl=document.getElementById('flResultLabel');
-  lbl.className='coin-result-label'; lbl.textContent='';
-
-  let result;
-  try{result=await window._fb.simpleGame('coinflip',betCents,flChoice);}
-  catch(e){showToast((e.message||'SERVER ERROR').toUpperCase(),'lose');btn.disabled=false;flFlipping=false;return;}
-
-  balance=result.newBalanceCents; updateAllBalances();
-  const won=result.won; const outcome=result.outcome; // 'heads' or 'tails'
-
-  // Animate coin — land on correct face
-  const coin=document.getElementById('flCoin');
-  // heads = 0 or 360, tails = 180
-  const finalRot=outcome==='heads'?1440:1620; // 1440=4 full rotations ending heads, 1620=tails
-  coin.style.setProperty('--final-rot',finalRot+'deg');
-  coin.classList.add('flipping');
-
-  setTimeout(()=>{
-    coin.classList.remove('flipping');
-    coin.style.transform=`rotateY(${outcome==='heads'?0:180}deg)`;
-    lbl.textContent=won?'YOU WIN!':'YOU LOSE';
-    lbl.className='coin-result-label show '+(won?'win':'lose');
-    flWins+=(won?1:0); flLosses+=(won?0:1);
-    flStreak=won?flStreak+1:0;
-    document.getElementById('flWins').textContent=flWins;
-    document.getElementById('flLosses').textContent=flLosses;
-    document.getElementById('flStreak').textContent=flStreak;
-    if(won)showToast('YOU WIN  ◈'+fmtCoins(result.winCents??betCents),'win');
-    else   showToast('YOU LOSE  −◈'+fmtCoins(betCents),'lose');
-    addHistoryBadge('flHistory',won,won?(result.winCents??betCents):betCents);
-    setTimeout(()=>{coin.style.transform='';btn.disabled=false;flFlipping=false;},1500);
-  },1300);
+async function mRevealCell(i) {
+  if(!mGameActive || mRevealed.has(i)) return;
+  const r = await window._fb.revealCell(mGameId, i);
+  mRevealed.add(i);
+  if(r.isMine) {
+    mGameActive = false; mMineIndices = r.mineIndices; mRenderGrid();
+    setTimeout(() => document.getElementById('mOverlay').classList.add('show'), 1000);
+  } else { mRenderGrid(); }
 }
 
-// ════════════════════════════════════════════════════════════
-//  FALLBACK
-// ════════════════════════════════════════════════════════════
-setTimeout(()=>{
-  if(!fbReady){
-    document.getElementById('loadingScreen').classList.add('hidden');
-    document.getElementById('authScreen').classList.remove('hidden');
-    document.getElementById('authError').textContent='COULD NOT CONNECT TO FIREBASE';
-  }
-},10000);
+async function mCashout() {
+  const r = await window._fb.cashout(mGameId);
+  balance = r.newBalanceCents; mGameActive = false; mMineIndices = r.mineIndices;
+  updateAllBalances(); mRenderGrid();
+  document.getElementById('mCashoutBtn').classList.remove('visible');
+  setTimeout(() => document.getElementById('mOverlay').classList.add('show'), 1000);
+}
+
+// CRATE & COIN STUBS
+async function cOpenCrate() {
+  const bet = coinsToCents(document.getElementById('cBetInput').value);
+  const r = await window._fb.simpleGame('crate', bet);
+  balance = r.newBalanceCents; updateAllBalances();
+  document.getElementById('crateDisplay').textContent = "RESULT: " + r.roll.toFixed(2);
+}
+
+let flChoice = 'heads';
+function flPick(s) { flChoice = s; }
+async function flFlip() {
+  const bet = coinsToCents(document.getElementById('flBetInput').value);
+  const r = await window._fb.simpleGame('coinflip', bet, flChoice);
+  const coin = document.getElementById('flCoin');
+  coin.style.transition = 'transform 1s';
+  coin.style.transform = r.outcome === 'heads' ? 'rotateY(0)' : 'rotateY(180deg)';
+  setTimeout(() => { balance = r.newBalanceCents; updateAllBalances(); }, 1000);
+}
 </script>
 </body>
 </html>
