@@ -384,6 +384,8 @@ input[type=range]::-moz-range-thumb {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: 8px; padding: 12px 14px;
   display: flex; justify-content: space-between; align-items: center;
+  /* Match balance card height so panel-row cells are equal */
+  min-height: 62px;
 }
 .mult-value {
   font-family: 'Bebas Neue', sans-serif; font-size: 26px;
@@ -426,7 +428,7 @@ input[type=range]::-moz-range-thumb {
   font-size: 8px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase;
 }
 .stat-card .s-value {
-  font-family: 'Bebas Neue', sans-serif; font-size: 20px; line-height: 1.2;
+  font-family: 'Bebas Neue', sans-serif; font-size: 18px; line-height: 1.2;
   /* Prevent overflow on small screens */
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
@@ -453,7 +455,7 @@ input[type=range]::-moz-range-thumb {
   cursor: pointer; position: relative; overflow: hidden;
   transition: background 0.1s, border-color 0.1s, transform 0.1s;
   display: flex; align-items: center; justify-content: center;
-  font-size: clamp(16px, 4vw, 26px); /* scales with viewport */
+  font-size: clamp(18px, 5vw, 28px); /* scales with viewport */
   /* 44px minimum touch target */
   min-height: 44px;
   -webkit-tap-highlight-color: transparent;
@@ -520,7 +522,10 @@ input[type=range]::-moz-range-thumb {
   font-size: clamp(28px, 8vw, 42px);
   letter-spacing: 4px; line-height: 1;
 }
-.overlay-sub { font-size: clamp(10px, 2.5vw, 13px); color: var(--muted); letter-spacing: 1px; }
+.overlay-sub {
+  font-size: clamp(10px, 2.5vw, 13px); color: var(--muted); letter-spacing: 1px;
+  word-break: break-all; max-width: 90%; text-align: center;
+}
 @keyframes fadeIn { from{opacity:0} to{opacity:1} }
 
 /* ─── DISMISS HINT ─── */
@@ -574,7 +579,7 @@ input[type=range]::-moz-range-thumb {
 @media (min-width: 700px) {
   body { justify-content: center; padding: 20px; }
 
-  #gameWrapper { display: none; } /* still hidden by default, shown by JS */
+  /* #gameWrapper display is controlled by JS only — no override here */
 
   .logo h1 { font-size: 48px; }
 
@@ -585,7 +590,7 @@ input[type=range]::-moz-range-thumb {
     align-items: start;
   }
 
-  .panel-row { grid-template-columns: 1fr; } /* single col in sidebar */
+  /* panel-row stays 2-col in sidebar — balance + multiplier side by side */
 
   .panel { gap: 16px; }
 
@@ -693,7 +698,7 @@ input[type=range]::-moz-range-thumb {
         </div>
         <div>
           <div class="panel-label">Multiplier</div>
-          <div class="multiplier-display" style="height:100%">
+          <div class="multiplier-display">
             <div class="mult-value" id="multValue">1.00×</div>
             <div class="mult-profit">
               <div class="profit-amount" id="profitAmt">+0.00</div>
@@ -1130,7 +1135,8 @@ async function doCashout() {
   // Lock game immediately — prevents double-tap
   gameActive  = false;
   pendingCell = -1;
-  const gid   = gameId;
+  const gid              = gameId;
+  const gemsAtCashout    = gemsRevealedCount; // capture before any reset
   gameId      = null;
 
   document.getElementById('cashoutBtn').classList.remove('visible');
@@ -1138,35 +1144,33 @@ async function doCashout() {
   document.getElementById('betInput').disabled   = false;
   document.getElementById('startBtn').disabled   = false;
 
-  // Optimistic: show win screen with local multiplier immediately
-  const localMult   = parseFloat(calcMultDisplay(gemsRevealedCount, currentMines));
+  // Show "cashing out" state on the grid while we wait for the server
+  document.getElementById('cashoutBtn').classList.remove('visible');
+  const localMult   = parseFloat(calcMultDisplay(gemsAtCashout, currentMines));
   const localPayout = Math.floor(currentBet * localMult);
-  balance += localPayout;
-  updateBalanceUI();
 
-  // Derive mineIndices for the reveal — we'll get the real ones from server
-  // but show optimistic cashout grid right away
-  const tempMines = [];  // empty — server will confirm
-  mineIndices = tempMines;
-  renderGrid('cashout');
-  showEndScreen(true, localPayout, null);
+  // Dim unrevealed cells to signal we're processing
+  mineIndices = null;
+  renderGrid('normal');
 
-  // Server call in background — reconcile balance when it returns
+  let winAmount = localPayout;
   try {
     const result = await window._fb.cashout(gid);
-    // Replace optimistic values with server-authoritative ones
-    balance = result.newBalanceCents;
+    // Use server authoritative values
+    balance     = result.newBalanceCents;
     mineIndices = result.mineIndices;
-    updateBalanceUI();
-    renderGrid('cashout'); // re-render with real mine positions
-    // Update the win overlay with confirmed amount
-    document.getElementById('overlayTitle').textContent =
-      '+ ' + fmtCoins(result.winCents);
+    winAmount   = result.winCents;
   } catch(e) {
-    // If server call fails, the pending game recovery on next login
-    // will reconcile. Don't penalise the player for a network drop.
-    console.warn('Cashout confirmation failed:', e);
+    // Network failure — use optimistic values, reconcile on next login
+    console.warn('Cashout server call failed, using local calculation:', e);
+    balance    += localPayout;
+    mineIndices = [];
   }
+
+  // Now show the full cashout reveal + end screen together
+  updateBalanceUI();
+  renderGrid('cashout');
+  showEndScreen(true, winAmount, null);
 }
 
 function showEndScreen(won, amountCents, serverSeed) {
