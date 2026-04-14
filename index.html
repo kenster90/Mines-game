@@ -194,54 +194,66 @@ body::before {
 #siteWrapper {
   display: none; flex-direction: column;
   width: 100%; min-height: 100vh; position: relative; z-index: 1;
+  /* Allow content to scroll on mobile */
+  overflow-x: hidden;
 }
 
 /* ── NAV BAR ── */
 .nav {
   background: var(--panel); border-bottom: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  position: sticky; top: 0; z-index: 50;
+}
+/* Row 1: brand + balance + logout */
+.nav-top {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0 16px; height: 56px; position: sticky; top: 0; z-index: 50;
-  gap: 10px;
+  padding: 0 14px; height: 48px; gap: 8px;
 }
-.nav-brand {
-  font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 5px;
-  color: var(--text); line-height: 1; flex-shrink: 0;
-}
-.nav-brand span { color: var(--accent); }
-
+/* Row 2: game tabs */
 .nav-games {
-  display: flex; gap: 4px; overflow-x: auto; flex: 1;
-  /* hide scrollbar */
+  display: flex; gap: 3px; overflow-x: auto;
+  padding: 0 14px 8px;
   scrollbar-width: none; -ms-overflow-style: none;
 }
 .nav-games::-webkit-scrollbar { display: none; }
 
+.nav-brand {
+  font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 4px;
+  color: var(--text); line-height: 1; flex-shrink: 0;
+}
+.nav-brand span { color: var(--accent); }
+
 .nav-btn {
   background: transparent; border: 1px solid transparent; color: var(--muted);
-  font-family: 'DM Mono', monospace; font-size: 11px; padding: 7px 12px;
+  font-family: 'DM Mono', monospace; font-size: 11px; padding: 8px 14px;
   border-radius: 6px; cursor: pointer; transition: all 0.15s;
   white-space: nowrap; letter-spacing: 1px; min-height: 36px;
   -webkit-tap-highlight-color: transparent; flex-shrink: 0;
 }
-.nav-btn:hover  { color: var(--text); border-color: var(--border); }
+.nav-btn:active { color: var(--text); border-color: var(--border); }
 .nav-btn.active { background: var(--surface); border-color: var(--border); color: var(--text); }
 .nav-btn.active.mines  { color: var(--danger); border-color: var(--danger); }
 .nav-btn.active.crate  { color: var(--purple); border-color: var(--purple); }
 .nav-btn.active.coin   { color: var(--gold);   border-color: var(--gold); }
 
 .nav-user {
-  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0; min-width: 0;
 }
+.nav-balance-wrap { text-align: right; flex-shrink: 0; }
 .nav-balance {
   font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: var(--gold);
-  letter-spacing: 1px; white-space: nowrap;
+  letter-spacing: 1px; white-space: nowrap; line-height: 1;
 }
-.nav-balance-label { font-size: 8px; color: var(--muted); letter-spacing: 1px; margin-top: 1px; }
-.nav-username { font-size: 10px; color: var(--accent); letter-spacing: 1px; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-balance-label { font-size: 8px; color: var(--muted); letter-spacing: 1px; }
+.nav-username {
+  font-size: 10px; color: var(--accent); letter-spacing: 1px;
+  max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .btn-nav-logout {
   background: transparent; border: 1px solid var(--border); color: var(--muted);
-  font-family: 'DM Mono', monospace; font-size: 10px; padding: 5px 8px;
-  border-radius: 5px; cursor: pointer; transition: all 0.15s; min-height: 30px;
+  font-family: 'DM Mono', monospace; font-size: 10px; padding: 6px 10px;
+  border-radius: 5px; cursor: pointer; transition: all 0.15s;
+  min-height: 32px; flex-shrink: 0;
   -webkit-tap-highlight-color: transparent;
 }
 .btn-nav-logout:active { border-color: var(--danger); color: var(--danger); }
@@ -262,6 +274,10 @@ body::before {
 }
 .panel-label { font-size: 9px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; }
 .panel-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
+/* Stack panel-row on very small screens */
+@media (max-width: 320px) {
+  .panel-row { grid-template-columns: 1fr; }
+}
 
 .balance-display { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
 .balance-amount { font-family: 'Bebas Neue', sans-serif; font-size: 30px; color: var(--gold); letter-spacing: 2px; line-height: 1; }
@@ -317,7 +333,7 @@ body::before {
 
 /* ── TOAST ── */
 .toast {
-  position: fixed; top: 66px; left: 50%;
+  position: fixed; top: 80px; left: 50%;
   transform: translateX(-50%) translateY(-80px);
   background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
   padding: 12px 22px; font-family: 'Bebas Neue', sans-serif; font-size: 17px; letter-spacing: 3px;
@@ -404,7 +420,7 @@ input[type=range]::-moz-range-thumb {
   cursor: pointer; position: relative; overflow: hidden;
   transition: background 0.1s, border-color 0.1s, transform 0.1s;
   display: flex; align-items: center; justify-content: center;
-  font-size: clamp(18px, 5vw, 28px); min-height: 44px;
+  font-size: clamp(16px, 4.5vw, 26px); min-height: 44px;
   -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;
 }
 .cell::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, transparent 100%); border-radius: inherit; pointer-events: none; }
@@ -493,9 +509,9 @@ input[type=range]::-moz-range-thumb {
   display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;
 }
 .crate-item-chip {
-  display: flex; align-items: center; gap: 5px; padding: 5px 10px;
+  display: flex; align-items: center; gap: 5px; padding: 6px 8px;
   border-radius: 6px; border: 1px solid var(--border); font-size: 11px;
-  background: var(--surface);
+  background: var(--surface); min-width: 0; overflow: hidden;
 }
 
 /* ═══════════════════════
@@ -507,20 +523,24 @@ input[type=range]::-moz-range-thumb {
   border-radius: var(--radius); min-height: 200px; justify-content: center;
 }
 
+/* Perspective wrapper needed for 3D flip to work on mobile */
+.coin-wrap {
+  perspective: 600px; width: 100px; height: 100px;
+}
 .coin {
   width: 100px; height: 100px; position: relative;
-  transform-style: preserve-3d; transition: transform 0.1s;
+  transform-style: preserve-3d;
+  transition: transform 0.3s ease;
 }
-.coin.flipping { animation: coinSpin 1.2s ease-in-out forwards; }
+.coin.flipping { animation: coinSpin 1.4s cubic-bezier(0.25,0.46,0.45,0.94) forwards; }
 @keyframes coinSpin {
-  0%   { transform: rotateY(0); }
-  80%  { transform: rotateY(1440deg); }
+  0%   { transform: rotateY(0deg); }
   100% { transform: rotateY(var(--final-rot, 1440deg)); }
 }
 .coin-face {
   position: absolute; inset: 0; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-size: 42px; border: 3px solid;
+  font-size: 40px; border: 3px solid;
   backface-visibility: hidden; -webkit-backface-visibility: hidden;
 }
 .coin-heads {
@@ -561,11 +581,19 @@ input[type=range]::-moz-range-thumb {
 /* ═══════════════════════
    RESPONSIVE
 ═══════════════════════ */
+@media (min-width: 600px) {
+  /* On wider screens, put nav back to single row */
+  .nav { flex-direction: row; align-items: center; height: 56px; padding: 0 16px; gap: 10px; }
+  .nav-top { padding: 0; height: auto; flex: 0 0 auto; }
+  .nav-games { padding: 0; flex: 1; }
+  .nav-brand { font-size: 28px; }
+}
 @media (min-width: 700px) {
   .page-content { padding: 20px; }
   .stat-card .s-value { font-size: 22px; }
   @media (hover:hover) {
     .btn-nav-logout:hover { border-color: var(--danger); color: var(--danger); }
+    .nav-btn:hover { color: var(--text); border-color: var(--border); }
   }
 }
 @media (max-width: 359px) {
@@ -612,19 +640,23 @@ input[type=range]::-moz-range-thumb {
 
   <!-- NAV -->
   <nav class="nav">
-    <div class="nav-brand">VAULT<span>.</span></div>
+    <!-- Row 1: brand + balance + logout -->
+    <div class="nav-top">
+      <div class="nav-brand">VAULT<span>.</span></div>
+      <div class="nav-user">
+        <div class="nav-balance-wrap">
+          <div class="nav-balance" id="navBalance">0.00</div>
+          <div class="nav-balance-label">COINS</div>
+        </div>
+        <div class="nav-username" id="navUser">—</div>
+        <button class="btn-nav-logout" onclick="logoutUser()">OUT</button>
+      </div>
+    </div>
+    <!-- Row 2: game tabs -->
     <div class="nav-games">
       <button class="nav-btn mines active" id="navMines" onclick="switchGame('mines')">💣 MINES</button>
       <button class="nav-btn crate"        id="navCrate" onclick="switchGame('crate')">📦 CRATES</button>
       <button class="nav-btn coin"         id="navCoin"  onclick="switchGame('coin')">🪙 COINFLIP</button>
-    </div>
-    <div class="nav-user">
-      <div style="text-align:right">
-        <div class="nav-balance" id="navBalance">0.00</div>
-        <div class="nav-balance-label">COINS</div>
-      </div>
-      <div class="nav-username" id="navUser">—</div>
-      <button class="btn-nav-logout" onclick="logoutUser()">OUT</button>
     </div>
   </nav>
 
@@ -725,12 +757,12 @@ input[type=range]::-moz-range-thumb {
           </div>
           <div>
             <div class="panel-label">Drop Rates</div>
-            <div style="display:flex;flex-direction:column;gap:5px;margin-top:2px">
-              <div class="crate-item-chip"><span>⬛</span><span style="color:var(--muted)">Common</span><span style="margin-left:auto;color:var(--muted)">50%</span></div>
-              <div class="crate-item-chip"><span>🟦</span><span style="color:var(--blue)">Rare</span><span style="margin-left:auto;color:var(--muted)">25%</span></div>
-              <div class="crate-item-chip"><span>🟪</span><span style="color:var(--purple)">Epic</span><span style="margin-left:auto;color:var(--muted)">15%</span></div>
-              <div class="crate-item-chip"><span>🟨</span><span style="color:var(--gold)">Legendary</span><span style="margin-left:auto;color:var(--muted)">8%</span></div>
-              <div class="crate-item-chip"><span>🟥</span><span style="color:var(--danger)">Ancient</span><span style="margin-left:auto;color:var(--muted)">2%</span></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:2px">
+              <div class="crate-item-chip"><span>⬛</span><span style="color:var(--muted);flex:1">Common</span><span style="color:var(--muted)">50%</span></div>
+              <div class="crate-item-chip"><span>🟦</span><span style="color:var(--blue);flex:1">Rare</span><span style="color:var(--muted)">25%</span></div>
+              <div class="crate-item-chip"><span>🟪</span><span style="color:var(--purple);flex:1">Epic</span><span style="color:var(--muted)">15%</span></div>
+              <div class="crate-item-chip"><span>🟨</span><span style="color:var(--gold);flex:1">Leg</span><span style="color:var(--muted)">8%</span></div>
+              <div class="crate-item-chip"><span>🟥</span><span style="color:var(--danger);flex:1">Ancient</span><span style="color:var(--muted)">2%</span></div>
             </div>
           </div>
           <button class="btn btn-purple" id="cOpenBtn" onclick="cOpenCrate()">OPEN CRATE</button>
@@ -799,9 +831,11 @@ input[type=range]::-moz-range-thumb {
             <div class="stat-card"><div class="s-label">Streak</div><div class="s-value gold" id="flStreak">0</div></div>
           </div>
           <div class="coin-arena">
-            <div class="coin" id="flCoin">
-              <div class="coin-face coin-heads">🌕</div>
-              <div class="coin-face coin-tails">🌑</div>
+            <div class="coin-wrap">
+              <div class="coin" id="flCoin">
+                <div class="coin-face coin-heads">🌕</div>
+                <div class="coin-face coin-tails">🌑</div>
+              </div>
             </div>
             <div class="coin-result-label" id="flResultLabel"></div>
           </div>
@@ -1259,13 +1293,13 @@ async function cOpenCrate(){
   display.appendChild(viewport);
 
   // Animate: scroll so item 40 (win) is centred
+  // We defer to next paint so viewport.clientWidth is available
   const itemW = 84+6; // width + gap
-  const targetX = -(40 * itemW) + (viewport.clientWidth/2) - 42;
-  // Start position (far left)
-  track.style.transform='translateX(0)';
-  // Use CSS transition for smooth decelerate spin
+  track.style.transform='translateX(0px)';
   requestAnimationFrame(()=>{
     requestAnimationFrame(()=>{
+      const vw = viewport.clientWidth || 300; // fallback if not yet painted
+      const targetX = -(40 * itemW) + (vw / 2) - 42;
       track.style.transition='transform 3s cubic-bezier(0.12,0.8,0.4,1)';
       track.style.transform=`translateX(${targetX}px)`;
     });
@@ -1335,9 +1369,11 @@ async function flFlip(){
   coin.style.setProperty('--final-rot',finalRot+'deg');
   coin.classList.add('flipping');
 
+  // Wait for animation to finish (1400ms) then show result
   setTimeout(()=>{
     coin.classList.remove('flipping');
-    coin.style.transform=`rotateY(${outcome==='heads'?0:180}deg)`;
+    // Hold the final face — prevent snap-back by keeping the transform
+    coin.style.transform=`rotateY(${outcome==='heads'?1440:1620}deg)`;
     lbl.textContent=won?'YOU WIN!':'YOU LOSE';
     lbl.className='coin-result-label show '+(won?'win':'lose');
     flWins+=(won?1:0); flLosses+=(won?0:1);
@@ -1348,8 +1384,16 @@ async function flFlip(){
     if(won)showToast('YOU WIN  ◈'+fmtCoins(result.winCents??betCents),'win');
     else   showToast('YOU LOSE  −◈'+fmtCoins(betCents),'lose');
     addHistoryBadge('flHistory',won,won?(result.winCents??betCents):betCents);
-    setTimeout(()=>{coin.style.transform='';btn.disabled=false;flFlipping=false;},1500);
-  },1300);
+    // Reset after a pause so next flip starts from neutral
+    setTimeout(()=>{
+      coin.style.transition='none';
+      coin.style.transform='rotateY(0deg)';
+      // Force a reflow so the transition reset takes effect before re-enabling
+      void coin.offsetWidth;
+      coin.style.transition='';
+      btn.disabled=false; flFlipping=false;
+    },1800);
+  },1450);
 }
 
 // ════════════════════════════════════════════════════════════
