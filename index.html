@@ -235,6 +235,7 @@ body::before {
 .nav-btn.active.mines  { color: var(--danger); border-color: var(--danger); }
 .nav-btn.active.crate  { color: var(--purple); border-color: var(--purple); }
 .nav-btn.active.coin   { color: var(--gold);   border-color: var(--gold); }
+.nav-btn.active.slots  { color: var(--accent); border-color: var(--accent); }
 
 .nav-user {
   display: flex; align-items: center; gap: 8px; flex-shrink: 0; min-width: 0;
@@ -579,6 +580,165 @@ input[type=range]::-moz-range-thumb {
 .coin-result-label.lose { color: var(--danger); }
 
 /* ═══════════════════════
+   SLOTS GAME
+═══════════════════════ */
+
+/* Machine frame */
+.slot-machine {
+  background: linear-gradient(160deg, #1a1025 0%, #0e0e18 100%);
+  border: 2px solid #3a2a5a;
+  border-radius: 18px;
+  padding: 20px 16px 16px;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  box-shadow: 0 0 40px rgba(168,85,247,0.12), inset 0 1px 0 rgba(255,255,255,0.06);
+  position: relative; overflow: hidden;
+}
+.slot-machine::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, transparent, var(--purple), var(--gold), var(--purple), transparent);
+}
+
+.slot-title {
+  font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 6px;
+  background: linear-gradient(135deg, var(--gold), var(--purple));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; line-height: 1;
+}
+
+/* Reels area */
+.slot-reels-wrap {
+  background: #08080f;
+  border: 2px solid #2a1a4a;
+  border-radius: 12px;
+  padding: 6px;
+  width: 100%;
+  box-shadow: inset 0 4px 20px rgba(0,0,0,0.6);
+  position: relative;
+}
+
+/* Win line highlight */
+.slot-reels-wrap::before {
+  content: ''; position: absolute;
+  top: 50%; left: 6px; right: 6px; height: 72px;
+  transform: translateY(-50%);
+  background: rgba(245,200,66,0.04);
+  border-top: 1px solid rgba(245,200,66,0.15);
+  border-bottom: 1px solid rgba(245,200,66,0.15);
+  pointer-events: none; z-index: 2; border-radius: 4px;
+}
+
+.slot-reels {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+/* Individual reel */
+.slot-reel {
+  overflow: hidden;
+  height: 216px; /* 3 symbols × 72px */
+  border-radius: 8px;
+  background: #0c0c16;
+  border: 1px solid #2a1a4a;
+  position: relative;
+}
+
+.slot-reel-inner {
+  display: flex; flex-direction: column;
+  transition: transform 0s;
+  will-change: transform;
+}
+
+.slot-symbol {
+  height: 72px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 36px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+/* Win flash — applied to winning reel symbols */
+.slot-symbol.win-flash {
+  animation: symbolWin 0.5s ease-in-out 3;
+}
+@keyframes symbolWin {
+  0%,100% { background: transparent; }
+  50%     { background: rgba(245,200,66,0.25); border-radius: 6px; }
+}
+
+/* Jackpot row glow */
+.slot-reels-wrap.jackpot::before {
+  background: rgba(245,200,66,0.12);
+  border-color: var(--gold);
+  box-shadow: 0 0 20px rgba(245,200,66,0.3);
+}
+
+/* Win display */
+.slot-win-display {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 28px; letter-spacing: 4px;
+  min-height: 36px; text-align: center;
+  transition: all 0.3s;
+  opacity: 0;
+}
+.slot-win-display.show { opacity: 1; }
+.slot-win-display.win  { color: var(--gold); text-shadow: 0 0 20px rgba(245,200,66,0.5); }
+.slot-win-display.lose { color: var(--muted); }
+.slot-win-display.jackpot { color: var(--gold); animation: jackpotPulse 0.6s ease-in-out infinite; font-size: 36px; }
+@keyframes jackpotPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+
+/* Pay table */
+.slot-paytable {
+  width: 100%;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid #2a1a4a;
+  border-radius: 10px;
+  padding: 12px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.slot-pay-title {
+  font-size: 9px; letter-spacing: 3px; color: var(--muted);
+  text-transform: uppercase; margin-bottom: 2px;
+}
+.slot-pay-row {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 13px; padding: 3px 0;
+}
+.slot-pay-symbols { letter-spacing: 2px; font-size: 18px; }
+.slot-pay-mult {
+  font-family: 'Bebas Neue', sans-serif; font-size: 16px;
+  color: var(--gold); letter-spacing: 1px;
+}
+
+/* Spin button */
+.btn-spin {
+  background: linear-gradient(135deg, var(--purple), #7c3aed);
+  color: #fff; border: none; border-radius: 10px;
+  font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 4px;
+  padding: 16px; width: 100%; cursor: pointer; min-height: 56px;
+  box-shadow: 0 4px 20px rgba(168,85,247,0.4);
+  transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+}
+.btn-spin:active { transform: scale(0.97); box-shadow: 0 2px 10px rgba(168,85,247,0.3); }
+.btn-spin:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+@media (hover:hover) {
+  .btn-spin:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 28px rgba(168,85,247,0.55); }
+}
+
+/* Lights decoration */
+.slot-lights {
+  display: flex; justify-content: space-around; width: 100%;
+}
+.slot-light {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--muted); transition: background 0.15s;
+}
+.slot-lights.on .slot-light:nth-child(odd)  { background: var(--gold); box-shadow: 0 0 8px var(--gold); }
+.slot-lights.on .slot-light:nth-child(even) { background: var(--purple); box-shadow: 0 0 8px var(--purple); }
+.slot-lights.jackpot .slot-light { background: var(--gold); box-shadow: 0 0 12px var(--gold); animation: lightBlink 0.3s ease-in-out infinite alternate; }
+@keyframes lightBlink { from { opacity: 0.4; } to { opacity: 1; } }
+
+/* ═══════════════════════
    RESPONSIVE
 ═══════════════════════ */
 @media (min-width: 600px) {
@@ -612,7 +772,7 @@ input[type=range]::-moz-range-thumb {
 <div id="authScreen" class="hidden">
   <div class="auth-box">
     <div class="auth-logo">VAULT<span>.</span></div>
-    <div class="auth-subtitle">Three games · One balance · Firebase</div>
+    <div class="auth-subtitle">Four games · One balance · Firebase</div>
     <div class="auth-tabs">
       <button class="auth-tab active" id="tabLogin"    onclick="switchTab('login')">LOGIN</button>
       <button class="auth-tab"        id="tabRegister" onclick="switchTab('register')">REGISTER</button>
@@ -657,6 +817,7 @@ input[type=range]::-moz-range-thumb {
       <button class="nav-btn mines active" id="navMines" onclick="switchGame('mines')">💣 MINES</button>
       <button class="nav-btn crate"        id="navCrate" onclick="switchGame('crate')">📦 CRATES</button>
       <button class="nav-btn coin"         id="navCoin"  onclick="switchGame('coin')">🪙 COINFLIP</button>
+      <button class="nav-btn slots"        id="navSlots" onclick="switchGame('slots')">🎰 SLOTS</button>
     </div>
   </nav>
 
@@ -844,6 +1005,86 @@ input[type=range]::-moz-range-thumb {
       </div>
     </div><!-- /pageCoin -->
 
+    <!-- ═══════════ SLOTS PAGE ═══════════ -->
+    <div class="game-page" id="pageSlots">
+      <div class="game-layout">
+        <!-- Controls -->
+        <div class="panel">
+          <div>
+            <div class="panel-label">Balance</div>
+            <div class="balance-display">
+              <div class="balance-amount" id="slBalanceAmt">0.00</div>
+              <div class="balance-label">COINS</div>
+            </div>
+          </div>
+          <div class="bet-wrap">
+            <div class="panel-label">Bet Per Spin</div>
+            <div class="bet-input-row">
+              <div class="coin-icon">◈</div>
+              <input type="number" id="slBetInput" value="10" min="1" max="10000" step="1" inputmode="decimal" placeholder="0.00">
+            </div>
+            <div class="bet-quick">
+              <button onclick="slSetBet(0.5)">½</button>
+              <button onclick="slSetBet(2)">2×</button>
+              <button onclick="slSetBet(null,50)">50</button>
+              <button onclick="slSetBetMax()">MAX</button>
+            </div>
+          </div>
+          <!-- Auto-spin -->
+          <div>
+            <div class="panel-label">Auto Spin</div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px">
+              <button class="bet-quick-btn" onclick="slSetAuto(0)"  id="slAutoOff" style="background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent);border-radius:6px;padding:7px 4px;font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;min-height:36px;-webkit-tap-highlight-color:transparent">OFF</button>
+              <button class="bet-quick-btn" onclick="slSetAuto(5)"  id="slAuto5"  style="background:var(--surface);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:7px 4px;font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;min-height:36px;-webkit-tap-highlight-color:transparent">×5</button>
+              <button class="bet-quick-btn" onclick="slSetAuto(10)" id="slAuto10" style="background:var(--surface);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:7px 4px;font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;min-height:36px;-webkit-tap-highlight-color:transparent">×10</button>
+              <button class="bet-quick-btn" onclick="slSetAuto(25)" id="slAuto25" style="background:var(--surface);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:7px 4px;font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;min-height:36px;-webkit-tap-highlight-color:transparent">×25</button>
+            </div>
+          </div>
+          <!-- Stats -->
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;justify-content:space-between"><span style="font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase">Spins</span><span id="slSpins" style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--accent)">0</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase">Best Win</span><span id="slBest" style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--gold)">—</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase">Auto Left</span><span id="slAutoLeft" style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--purple)">—</span></div>
+          </div>
+        </div>
+        <!-- Machine -->
+        <div class="game-area">
+          <div class="slot-machine" id="slMachine">
+            <div class="slot-lights" id="slLights">
+              <div class="slot-light"></div><div class="slot-light"></div><div class="slot-light"></div>
+              <div class="slot-light"></div><div class="slot-light"></div><div class="slot-light"></div>
+              <div class="slot-light"></div><div class="slot-light"></div><div class="slot-light"></div>
+            </div>
+            <div class="slot-title">777</div>
+            <div class="slot-reels-wrap" id="slReelsWrap">
+              <div class="slot-reels">
+                <div class="slot-reel" id="slReel0"><div class="slot-reel-inner" id="slInner0"></div></div>
+                <div class="slot-reel" id="slReel1"><div class="slot-reel-inner" id="slInner1"></div></div>
+                <div class="slot-reel" id="slReel2"><div class="slot-reel-inner" id="slInner2"></div></div>
+              </div>
+            </div>
+            <div class="slot-win-display" id="slWinDisplay"></div>
+            <button class="btn-spin" id="slSpinBtn" onclick="slSpin()">SPIN</button>
+            <!-- Pay table -->
+            <div class="slot-paytable">
+              <div class="slot-pay-title">Pay Table</div>
+              <div class="slot-pay-row"><span class="slot-pay-symbols">7️⃣7️⃣7️⃣</span><span class="slot-pay-mult">JACKPOT 50×</span></div>
+              <div class="slot-pay-row"><span class="slot-pay-symbols">💎💎💎</span><span class="slot-pay-mult">25×</span></div>
+              <div class="slot-pay-row"><span class="slot-pay-symbols">🍒🍒🍒</span><span class="slot-pay-mult">10×</span></div>
+              <div class="slot-pay-row"><span class="slot-pay-symbols">🍋🍋🍋</span><span class="slot-pay-mult">8×</span></div>
+              <div class="slot-pay-row"><span class="slot-pay-symbols">🔔🔔🔔</span><span class="slot-pay-mult">6×</span></div>
+              <div class="slot-pay-row"><span class="slot-pay-symbols">🍇🍇🍇</span><span class="slot-pay-mult">5×</span></div>
+              <div class="slot-pay-row"><span class="slot-pay-symbols">⭐⭐⭐</span><span class="slot-pay-mult">4×</span></div>
+              <div class="slot-pay-row"><span class="slot-pay-symbols">🍊🍊🍊</span><span class="slot-pay-mult">3×</span></div>
+              <div class="slot-pay-row"><span style="font-size:13px;color:var(--muted)">Any pair</span><span class="slot-pay-mult">1.5×</span></div>
+              <div class="slot-pay-row"><span style="font-size:13px;color:var(--muted)">Two 7️⃣s</span><span class="slot-pay-mult">3×</span></div>
+            </div>
+          </div>
+          <div class="history" id="slHistory"><span class="history-label">History</span></div>
+        </div>
+      </div>
+    </div><!-- /pageSlots -->
+
   </div><!-- /page-content -->
 </div><!-- /siteWrapper -->
 
@@ -869,6 +1110,7 @@ function updateAllBalances() {
   document.getElementById('mBalanceAmt').textContent  = f;
   document.getElementById('cBalanceAmt').textContent  = f;
   document.getElementById('flBalanceAmt').textContent = f;
+  document.getElementById('slBalanceAmt').textContent = f;
   document.getElementById('navBalance').textContent   = f;
 }
 
@@ -881,7 +1123,7 @@ function showToast(msg, type) {
 // ── NAV ──────────────────────────────────────────────────────
 function switchGame(name) {
   currentGame = name;
-  ['mines','crate','coin'].forEach(g => {
+  ['mines','crate','coin','slots'].forEach(g => {
     document.getElementById('nav' + g.charAt(0).toUpperCase() + g.slice(1))
       .classList.toggle('active', g === name);
     document.getElementById('page' + g.charAt(0).toUpperCase() + g.slice(1))
@@ -989,7 +1231,7 @@ async function saveUserMeta(extra={}) {
 
 // Load history into all three tabs
 function loadAllHistory(hist) {
-  ['mHistory','cHistory','flHistory'].forEach(id=>{
+  ['mHistory','cHistory','flHistory','slHistory'].forEach(id=>{
     document.getElementById(id).innerHTML='<span class="history-label">History</span>';
   });
   [...hist].slice(0,10).reverse().forEach(item=>{
@@ -998,7 +1240,7 @@ function loadAllHistory(hist) {
     // Add to relevant game history
     const gameId=item.game||'mines';
     const histEl=document.getElementById(
-      gameId==='crate'?'cHistory':gameId==='coin'?'flHistory':'mHistory'
+      gameId==='crate'?'cHistory':gameId==='coin'?'flHistory':gameId==='slots'?'slHistory':'mHistory'
     );
     const all=histEl.querySelectorAll('.history-badge');
     if(all.length>=10) all[all.length-1].remove();
@@ -1022,7 +1264,7 @@ function addHistoryBadge(histElId,won,amountCents) {
   if(currentUser){
     currentUser.gamesPlayed=(currentUser.gamesPlayed||0)+1;
     currentUser.history=[
-      {won,amountCents,game:histElId==='cHistory'?'crate':histElId==='flHistory'?'coin':'mines',ts:Date.now()},
+      {won,amountCents,game:histElId==='cHistory'?'crate':histElId==='flHistory'?'coin':histElId==='slHistory'?'slots':'mines',ts:Date.now()},
       ...(currentUser.history||[])
     ].slice(0,20);
     document.getElementById('navUser').textContent=(currentUser.username||'').toUpperCase();
@@ -1395,6 +1637,308 @@ async function flFlip(){
     },1800);
   },1450);
 }
+
+// ════════════════════════════════════════════════════════════
+//  SLOTS GAME
+// ════════════════════════════════════════════════════════════
+
+// Symbol definitions — ordered by rarity (rarest last)
+const SL_SYMBOLS = [
+  { s: '🍊', weight: 18 }, // orange    — most common
+  { s: '🍇', weight: 15 }, // grapes
+  { s: '⭐', weight: 13 }, // star
+  { s: '🔔', weight: 11 }, // bell
+  { s: '🍋', weight: 10 }, // lemon
+  { s: '🍒', weight:  9 }, // cherry
+  { s: '💎', weight:  6 }, // diamond
+  { s: '7️⃣', weight:  3 }, // seven — rarest
+];
+const SL_TOTAL_W = SL_SYMBOLS.reduce((s,x) => s + x.weight, 0);
+
+// Payout table: key = symbol emoji, value = multiplier for 3-of-a-kind
+const SL_PAY3 = {
+  '7️⃣': 50, '💎': 25, '🍒': 10, '🍋': 8,
+  '🔔': 6,  '🍇': 5,  '⭐': 4,  '🍊': 3,
+};
+const SL_PAY_PAIR    = 1.5;  // any matching pair (not 3)
+const SL_PAY_TWO7    = 3;    // two sevens (not jackpot)
+const REEL_VISIBLE   = 3;    // symbols visible per reel
+const REEL_EXTRA     = 20;   // extra symbols above visible for spin animation
+const SL_SYMBOL_H    = 72;   // px — must match CSS
+
+let slSpinning  = false;
+let slAutoCount = 0;      // remaining auto-spins
+let slAutoTotal = 0;
+let slSpinCount = 0;
+let slBestCents = 0;
+let slAutoTimer = null;
+
+// Pick a random symbol using weighted probability
+function slPickSymbol(excludeJackpot=false) {
+  let pool = excludeJackpot ? SL_SYMBOLS.filter(x => x.s !== '7️⃣') : SL_SYMBOLS;
+  let total = pool.reduce((s,x) => s + x.weight, 0);
+  let r = Math.random() * total;
+  for (const sym of pool) {
+    r -= sym.weight;
+    if (r <= 0) return sym.s;
+  }
+  return pool[pool.length - 1].s;
+}
+
+// Build a reel strip: REEL_EXTRA random symbols + the final visible 3
+function slBuildStrip(finalThree) {
+  const strip = [];
+  for (let i = 0; i < REEL_EXTRA; i++) strip.push(slPickSymbol());
+  strip.push(...finalThree);
+  return strip;
+}
+
+// Render a reel inner with symbols
+function slRenderReel(reelIdx, strip) {
+  const inner = document.getElementById('slInner' + reelIdx);
+  inner.style.transition = 'none';
+  inner.style.transform  = 'translateY(0)';
+  inner.innerHTML = '';
+  strip.forEach(sym => {
+    const div = document.createElement('div');
+    div.className = 'slot-symbol';
+    div.textContent = sym;
+    inner.appendChild(div);
+  });
+}
+
+// Initialise reels to idle state (random symbols)
+function slInitReels() {
+  for (let r = 0; r < 3; r++) {
+    const idle = [slPickSymbol(), slPickSymbol(), slPickSymbol()];
+    slRenderReel(r, slBuildStrip(idle));
+    // Show only the last 3 (centre position)
+    const inner = document.getElementById('slInner' + r);
+    const total  = REEL_EXTRA + REEL_VISIBLE;
+    inner.style.transform = `translateY(-${(total - REEL_VISIBLE) * SL_SYMBOL_H}px)`;
+  }
+}
+
+// Animate one reel spinning and landing on finalThree symbols
+function slAnimReel(reelIdx, finalThree, delay) {
+  return new Promise(resolve => {
+    const strip = slBuildStrip(finalThree);
+    slRenderReel(reelIdx, strip);
+    const inner   = document.getElementById('slInner' + reelIdx);
+    const total   = strip.length;
+    // Start at top (position 0), need to end so last 3 symbols are centred
+    const endY    = (total - REEL_VISIBLE) * SL_SYMBOL_H;
+    const spinY   = endY + (REEL_EXTRA * SL_SYMBOL_H * 0.4); // overshoot for bounce
+    const dur     = 600 + reelIdx * 220; // stagger: reel 0 stops first
+
+    setTimeout(() => {
+      // Kick off fast spin (no transition — instant jump to create blur effect via steps)
+      inner.style.transition = `transform ${dur}ms cubic-bezier(0.25, 0.1, 0.25, 1)`;
+      inner.style.transform  = `translateY(-${endY}px)`;
+      setTimeout(resolve, dur + 60);
+    }, delay);
+  });
+}
+
+function slSetBet(mult, fixed) {
+  const inp = document.getElementById('slBetInput');
+  const cur = parseFloat(inp.value) || 0;
+  inp.value = fixed !== undefined ? fixed : Math.max(1, Math.floor(cur * mult));
+}
+function slSetBetMax() {
+  document.getElementById('slBetInput').value = Math.floor(centsToCoins(balance));
+}
+
+function slSetAuto(n) {
+  slAutoCount = n; slAutoTotal = n;
+  // Update button highlights
+  ['slAutoOff','slAuto5','slAuto10','slAuto25'].forEach(id => {
+    const btn = document.getElementById(id);
+    const isActive =
+      (id === 'slAutoOff' && n === 0) ||
+      (id === 'slAuto5'   && n === 5) ||
+      (id === 'slAuto10'  && n === 10) ||
+      (id === 'slAuto25'  && n === 25);
+    btn.style.background    = isActive ? 'var(--accent-dim)' : 'var(--surface)';
+    btn.style.borderColor   = isActive ? 'var(--accent)'     : 'var(--border)';
+    btn.style.color         = isActive ? 'var(--accent)'     : 'var(--muted)';
+  });
+  document.getElementById('slAutoLeft').textContent = n > 0 ? n : '—';
+  // If auto was off and we just set it, trigger a spin if not already spinning
+  if (n > 0 && !slSpinning) slSpin();
+}
+
+async function slSpin() {
+  if (slSpinning) return;
+  const betCoins = parseFloat(document.getElementById('slBetInput').value);
+  if (isNaN(betCoins) || betCoins < 1) { showToast('MINIMUM BET IS 1', 'lose'); slAutoCount = 0; return; }
+  const betCents = coinsToCents(betCoins);
+  if (betCents > balance) { showToast('INSUFFICIENT FUNDS', 'lose'); slAutoCount = 0; return; }
+
+  slSpinning = true;
+  const btn = document.getElementById('slSpinBtn');
+  btn.disabled = true;
+  const winDisp = document.getElementById('slWinDisplay');
+  winDisp.className = 'slot-win-display'; winDisp.textContent = '';
+
+  // Lights on during spin
+  const lights = document.getElementById('slLights');
+  lights.classList.add('on'); lights.classList.remove('jackpot');
+  document.getElementById('slReelsWrap').classList.remove('jackpot');
+
+  // Call server for result
+  let result;
+  try {
+    result = await window._fb.simpleGame('slots', betCents, null);
+  } catch(e) {
+    showToast((e.message || 'SERVER ERROR').toUpperCase(), 'lose');
+    slSpinning = false; btn.disabled = false;
+    lights.classList.remove('on');
+    slAutoCount = 0;
+    return;
+  }
+
+  balance = result.newBalanceCents;
+  updateAllBalances();
+
+  // Server returns a roll [0,1) — use it to deterministically pick symbols
+  // We use the roll to seed the RNG for all 3 reels so result is consistent
+  const roll = result.roll;
+  const reelSymbols = slDetermineReels(roll, betCents, result.payout);
+
+  // Animate all three reels
+  const spinDelay = 0;
+  await Promise.all([
+    slAnimReel(0, reelSymbols[0], spinDelay),
+    slAnimReel(1, reelSymbols[1], spinDelay),
+    slAnimReel(2, reelSymbols[2], spinDelay),
+  ]);
+
+  // Show result
+  const midSymbols = reelSymbols.map(r => r[1]); // centre row is index 1
+  const payout     = result.payout;
+  const won        = payout > 0;
+  const isJackpot  = midSymbols.every(s => s === '7️⃣');
+
+  lights.classList.remove('on');
+
+  if (isJackpot) {
+    lights.classList.add('jackpot');
+    document.getElementById('slReelsWrap').classList.add('jackpot');
+    winDisp.textContent = '🎰 JACKPOT! +◈' + fmtCoins(payout);
+    winDisp.className   = 'slot-win-display show jackpot';
+    showToast('🎰 JACKPOT!  ◈' + fmtCoins(payout), 'win');
+    // Flash winning symbols
+    for (let r = 0; r < 3; r++) {
+      const inner = document.getElementById('slInner' + r);
+      const cells = inner.querySelectorAll('.slot-symbol');
+      const midIdx = cells.length - 2; // centre of 3 visible
+      if (cells[midIdx]) cells[midIdx].classList.add('win-flash');
+    }
+  } else if (won) {
+    winDisp.textContent = '+◈' + fmtCoins(payout);
+    winDisp.className   = 'slot-win-display show win';
+    showToast('WIN  ◈' + fmtCoins(payout), 'win');
+  } else {
+    winDisp.textContent = 'NO WIN';
+    winDisp.className   = 'slot-win-display show lose';
+  }
+
+  // Update stats
+  slSpinCount++;
+  document.getElementById('slSpins').textContent = slSpinCount;
+  if (payout > slBestCents) {
+    slBestCents = payout;
+    document.getElementById('slBest').textContent = fmtCoins(payout);
+  }
+
+  addHistoryBadge('slHistory', won, won ? payout : betCents);
+
+  // Auto-spin countdown
+  if (slAutoCount > 0) {
+    slAutoCount--;
+    document.getElementById('slAutoLeft').textContent = slAutoCount > 0 ? slAutoCount : '—';
+    if (slAutoCount === 0) {
+      slSetAuto(0);
+    }
+  }
+
+  slSpinning = false;
+  btn.disabled = false;
+
+  // Continue auto-spin if still going and have balance
+  if (slAutoCount > 0 && balance >= betCents) {
+    slAutoTimer = setTimeout(slSpin, 600);
+  } else if (slAutoCount > 0) {
+    slAutoCount = 0;
+    slSetAuto(0);
+    showToast('AUTO-SPIN STOPPED — INSUFFICIENT FUNDS', 'lose');
+  }
+}
+
+// Determine what symbols appear on each reel based on the server roll
+// The server controls the payout; we reverse-engineer which symbols to show.
+function slDetermineReels(roll, betCents, serverPayout) {
+  // Calculate what multiplier the server paid
+  const mult = serverPayout / betCents;
+
+  // Find which 3-of-a-kind matches (or pair, or nothing)
+  let winSymbol = null;
+  if (mult >= 49) { winSymbol = '7️⃣'; }  // jackpot
+  else if (mult >= 24) { winSymbol = '💎'; }
+  else if (mult >= 9)  { winSymbol = '🍒'; }
+  else if (mult >= 7)  { winSymbol = '🍋'; }
+  else if (mult >= 5)  { winSymbol = '🔔'; }
+  else if (mult >= 4)  { winSymbol = '🍇'; }
+  else if (mult >= 3.5){ winSymbol = '⭐'; }
+  else if (mult >= 2.5){ winSymbol = '🍊'; }
+
+  // Build 3 columns of 3 symbols each (top, middle, bottom)
+  // Middle row is the payline
+  const reels = [];
+  if (winSymbol) {
+    if (mult >= 1.4 && mult < 3) {
+      // Pair win — 2 of the rarest symbol + 1 different, or two 7s
+      const pair = (mult >= 2.5) ? '7️⃣' : slPickSymbol(true);
+      const other = slPickSymbol(true);
+      // Randomly distribute which reel is the odd one out
+      const oddReel = Math.floor(roll * 3);
+      for (let r = 0; r < 3; r++) {
+        const mid = (r === oddReel) ? other : pair;
+        reels.push([slPickSymbol(), mid, slPickSymbol()]);
+      }
+    } else {
+      // Three of a kind on middle row
+      for (let r = 0; r < 3; r++) {
+        reels.push([slPickSymbol(), winSymbol, slPickSymbol()]);
+      }
+    }
+  } else {
+    // No win — ensure no three of a kind on middle row
+    let tries = 0;
+    do {
+      reels.length = 0;
+      for (let r = 0; r < 3; r++) {
+        reels.push([slPickSymbol(), slPickSymbol(), slPickSymbol()]);
+      }
+      tries++;
+    } while (
+      reels[0][1] === reels[1][1] && reels[1][1] === reels[2][1] && tries < 20
+    );
+  }
+  return reels;
+}
+
+// Init reels on page load (will be called when slots page is first shown)
+let slInitDone = false;
+const _origSwitchGame = switchGame;
+switchGame = function(name) {
+  _origSwitchGame(name);
+  if (name === 'slots' && !slInitDone) {
+    slInitDone = true;
+    slInitReels();
+  }
+};
 
 // ════════════════════════════════════════════════════════════
 //  FALLBACK
