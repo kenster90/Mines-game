@@ -85,27 +85,6 @@
 </script>
 
 <style>
-  /* Music Toggle Styles */
-.nav-music-toggle {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  color: var(--muted);
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
-  flex-shrink: 0;
-}
-.nav-music-toggle.playing {
-  color: var(--accent);
-  border-color: var(--accent);
-  box-shadow: 0 0 10px var(--accent-dim);
-}
 /* ═══════════════════════
    TOKENS
 ═══════════════════════ */
@@ -131,12 +110,11 @@
 }
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 html { height:100%; }
-body {  
+body {
   background: var(--bg); color: var(--text);
   font-family: 'DM Mono', monospace;
   min-height: 100%; display: flex; flex-direction: column;
   align-items: center; padding: 0; overflow-x: hidden;
-  <audio id="bgMusic" loop src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"></audio>
 }
 body::before {
   content: ''; position: fixed; top:-50%; left:-50%; width:200%; height:200%;
@@ -825,9 +803,7 @@ input[type=range]::-moz-range-thumb {
     <!-- Row 1: brand + balance + logout -->
     <div class="nav-top">
       <div class="nav-brand">VAULT<span>.</span></div>
-     <div class="nav-user">
-  <button class="nav-music-toggle" id="musicToggle" onclick="toggleMusic()" title="Toggle Music">
-    <span id="musicIcon"></span>
+      <div class="nav-user">
         <div class="nav-balance-wrap">
           <div class="nav-balance" id="navBalance">0.00</div>
           <div class="nav-balance-label">COINS</div>
@@ -1121,28 +1097,7 @@ let balance     = 0;       // integer cents, shared across all games
 let currentTab  = 'login';
 let fbReady     = false;
 let currentGame = 'mines';
-let musicPlaying = false;
-const audio = document.getElementById('bgMusic');
-const musicBtn = document.getElementById('musicToggle');
-const musicIcon = document.getElementById('musicIcon');
-audio.volume = 0.3; 
 
-function toggleMusic() {
-  if (!musicPlaying) {
-    audio.play().then(() => {
-      musicPlaying = true;
-      musicBtn.classList.add('playing');
-      musicIcon.textContent = '🔊';
-    }).catch(e => {
-      showToast("BROWSER BLOCKED AUDIO - CLICK AGAIN", "info");
-    });
-  } else {
-    audio.pause();
-    musicPlaying = false;
-    musicBtn.classList.remove('playing');
-    musicIcon.textContent = '🔇';
-  }
-}
 function coinsToCents(c) { return Math.round(c * 100); }
 function centsToCoins(c) { return c / 100; }
 function fmtCoins(cents) {
