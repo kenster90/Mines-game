@@ -591,7 +591,9 @@ input[type=range]::-moz-range-thumb {
   padding: 20px 16px 16px;
   display: flex; flex-direction: column; align-items: center; gap: 14px;
   box-shadow: 0 0 40px rgba(168,85,247,0.12), inset 0 1px 0 rgba(255,255,255,0.06);
-  position: relative; overflow: hidden;
+  position: relative;
+  /* overflow:hidden removed — was clipping win display text on narrow screens */
+  width: 100%;
 }
 .slot-machine::before {
   content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
@@ -642,6 +644,14 @@ input[type=range]::-moz-range-thumb {
   border: 1px solid #2a1a4a;
   position: relative;
 }
+/* Fade top and bottom of each reel for depth effect */
+.slot-reel::before,
+.slot-reel::after {
+  content: ''; position: absolute; left: 0; right: 0; height: 54px;
+  pointer-events: none; z-index: 4;
+}
+.slot-reel::before { top: 0; background: linear-gradient(to bottom, #0c0c16, transparent); }
+.slot-reel::after  { bottom: 0; background: linear-gradient(to top, #0c0c16, transparent); }
 
 .slot-reel-inner {
   display: flex; flex-direction: column;
@@ -676,10 +686,10 @@ input[type=range]::-moz-range-thumb {
 /* Win display */
 .slot-win-display {
   font-family: 'Bebas Neue', sans-serif;
-  font-size: 28px; letter-spacing: 4px;
+  font-size: clamp(18px, 5vw, 28px); letter-spacing: 3px;
   min-height: 36px; text-align: center;
-  transition: all 0.3s;
-  opacity: 0;
+  transition: all 0.3s; opacity: 0;
+  width: 100%; word-break: break-word;
 }
 .slot-win-display.show { opacity: 1; }
 .slot-win-display.win  { color: var(--gold); text-shadow: 0 0 20px rgba(245,200,66,0.5); }
@@ -1088,11 +1098,883 @@ input[type=range]::-moz-range-thumb {
   </div><!-- /page-content -->
 </div><!-- /siteWrapper -->
 
-<script>let currentUser=null,balance=0,currentTab="login",fbReady=!1,currentGame="mines";function coinsToCents(e){return Math.round(100*e)}function centsToCoins(e){return e/100}function fmtCoins(e){return(e/100).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}function updateAllBalances(){var e=fmtCoins(balance);document.getElementById("mBalanceAmt").textContent=e,document.getElementById("cBalanceAmt").textContent=e,document.getElementById("flBalanceAmt").textContent=e,document.getElementById("slBalanceAmt").textContent=e,document.getElementById("navBalance").textContent=e}function showToast(e,t){const n=document.getElementById("toast");n.textContent=e,n.className="toast "+t+" show",clearTimeout(n._t),n._t=setTimeout(()=>n.classList.remove("show"),2600)}function switchGame(t){currentGame=t,["mines","crate","coin","slots"].forEach(e=>{document.getElementById("nav"+e.charAt(0).toUpperCase()+e.slice(1)).classList.toggle("active",e===t),document.getElementById("page"+e.charAt(0).toUpperCase()+e.slice(1)).classList.toggle("active",e===t)})}function switchTab(e){currentTab=e,document.getElementById("tabLogin").classList.toggle("active","login"===e),document.getElementById("tabRegister").classList.toggle("active","register"===e),document.getElementById("authBtn").textContent="login"===e?"LOGIN":"CREATE ACCOUNT",document.getElementById("usernameField").style.display="register"===e?"flex":"none",document.getElementById("authError").textContent=""}async function handleAuth(){var e=document.getElementById("authEmail").value.trim(),t=document.getElementById("authPass").value,n=document.getElementById("authName").value.trim(),s=document.getElementById("authError"),l=document.getElementById("authBtn");if(s.textContent="",e&&e.includes("@"))if(!t||t.length<6)s.textContent="PASSWORD MUST BE 6+ CHARACTERS";else if("register"===currentTab&&(!n||n.length<2))s.textContent="ENTER A DISPLAY NAME";else{l.disabled=!0,l.textContent="...";try{"register"===currentTab?(currentUser=await window._fb.register(e,t,n),balance=currentUser.balanceCents??coinsToCents(1e3),showToast("WELCOME, "+n.toUpperCase()+"!","info")):(currentUser=await window._fb.login(e,t),balance=currentUser.balanceCents??coinsToCents(currentUser.balance||1e3),showToast("WELCOME BACK!","info")),loadAllHistory(currentUser.history||[]),currentUser.pendingGame?mRecoverPendingGame(currentUser.pendingGame):enterSite()}catch(e){n=e.code||"";s.textContent="auth/user-not-found"===n?"ACCOUNT NOT FOUND":"auth/wrong-password"===n?"INCORRECT PASSWORD":"auth/invalid-credential"===n?"INVALID EMAIL OR PASSWORD":"auth/email-already-in-use"===n?"EMAIL ALREADY REGISTERED":"auth/too-many-requests"===n?"TOO MANY ATTEMPTS — TRY LATER":(e.message||"SOMETHING WENT WRONG").toUpperCase()}l.disabled=!1,l.textContent="login"===currentTab?"LOGIN":"CREATE ACCOUNT"}else s.textContent="ENTER A VALID EMAIL"}function enterSite(){document.getElementById("authScreen").classList.add("hidden"),document.getElementById("siteWrapper").style.display="flex",document.getElementById("navUser").textContent=(currentUser.username||currentUser.email||"—").toUpperCase(),updateAllBalances(),mRenderGrid()}async function logoutUser(){var e;mGameActive&&mGameId&&(e=mGameId,mGameActive=!1,mGameId=null,window._fb.bust(e).catch(()=>{})),await window._fb.logout(),currentUser=null,balance=0,mGameActive=!1,mGameId=null,mMineIndices=null,mPendingCell=-1,document.getElementById("siteWrapper").style.display="none",document.getElementById("authScreen").classList.remove("hidden"),document.getElementById("authEmail").value=document.getElementById("authPass").value="",document.getElementById("authError").textContent="",["mHistory","cHistory","flHistory"].forEach(e=>{document.getElementById(e).innerHTML='<span class="history-label">History</span>'})}async function saveUserMeta(e={}){if(currentUser)try{await window._fb.saveUserMeta(currentUser.uid,{gamesPlayed:currentUser.gamesPlayed,history:currentUser.history,...e})}catch(e){console.warn("Meta save failed:",e)}}function loadAllHistory(e){["mHistory","cHistory","flHistory","slHistory"].forEach(e=>{document.getElementById(e).innerHTML='<span class="history-label">History</span>'}),[...e].slice(0,10).reverse().forEach(e=>{var t=e.amountCents??coinsToCents(e.amount||0),t=makeBadge(e.won,t),e=e.game||"mines",e=document.getElementById("crate"===e?"cHistory":"coin"===e?"flHistory":"slots"===e?"slHistory":"mHistory"),n=e.querySelectorAll(".history-badge");10<=n.length&&n[n.length-1].remove(),e.insertBefore(t,e.children[1])})}function makeBadge(e,t){var n=document.createElement("span");return n.className="history-badge "+(e?"win":"lose"),n.textContent=(e?"+":"−")+"◈"+fmtCoins(t),n}function addHistoryBadge(e,t,n){var s=document.getElementById(e),l=makeBadge(t,n),a=s.querySelectorAll(".history-badge");10<=a.length&&a[a.length-1].remove(),s.insertBefore(l,s.children[1]),currentUser&&(currentUser.gamesPlayed=(currentUser.gamesPlayed||0)+1,currentUser.history=[{won:t,amountCents:n,game:"cHistory"===e?"crate":"flHistory"===e?"coin":"slHistory"===e?"slots":"mines",ts:Date.now()},...currentUser.history||[]].slice(0,20),document.getElementById("navUser").textContent=(currentUser.username||"").toUpperCase(),saveUserMeta({pendingGame:null}))}window._onFirebaseUser=function(e){currentUser=e,balance=null!=e.balanceCents?e.balanceCents:coinsToCents(e.balance||1e3),fbReady=!0,document.getElementById("loadingScreen").classList.add("hidden"),loadAllHistory(currentUser.history||[]),e.pendingGame?mRecoverPendingGame(e.pendingGame):enterSite()},window._showAuth=function(){fbReady=!0,document.getElementById("loadingScreen").classList.add("hidden"),document.getElementById("authScreen").classList.remove("hidden")};const M_GRID=25;let mGameId=null,mSeedHash=null,mMineIndices=null,mRevealed=new Set,mRevealedIsMine=new Map,mPendingCell=-1,mGameActive=!1,mCurrentBet=0,mCurrentMines=3,mGemsCount=0;function mCalcMult(t,e){if(0===t)return"1.00";var n=M_GRID-e;let s=1,l=1;for(let e=0;e<t;e++)s*=M_GRID-e,l*=n-e;return(s/l*.97).toFixed(2)}function mUpdateMineCount(e){mCurrentMines=parseInt(e),document.getElementById("mMineCountDisp").textContent=e,document.getElementById("mMineCountLabel").textContent=e}function mUpdateMultUI(){var e=mCalcMult(mGemsCount,mCurrentMines),t=centsToCoins(mCurrentBet);document.getElementById("mMultValue").textContent=e+"×",document.getElementById("mProfitAmt").textContent="+"+(parseFloat(e)*t-t).toFixed(2),document.getElementById("mGemsFound").textContent=mGemsCount,document.getElementById("mCashoutAmt").textContent=0<mGemsCount?fmtCoins(Math.floor(mCurrentBet*parseFloat(e))):"—"}function mSetBet(e,t){var n=document.getElementById("mBetInput"),s=parseFloat(n.value)||0;n.value=void 0!==t?t:Math.max(.01,parseFloat((s*e).toFixed(2)))}function mSetBetMax(){document.getElementById("mBetInput").value=centsToCoins(balance).toFixed(2)}function mRenderGrid(t="normal",n=-1){var s=document.getElementById("mGrid");s.innerHTML="";for(let e=0;e<M_GRID;e++){var l=document.createElement("div");l.className="cell",e===n?(l.classList.add("gem","pending","no-hover"),l.innerHTML='<span style="filter:drop-shadow(0 0 5px var(--accent));opacity:0.7">💎</span>'):mRevealed.has(e)?(l.classList.add("no-hover"),mRevealedIsMine.get(e)?(l.classList.add("mine-hit"),l.textContent="💣"):(l.classList.add("gem"),l.innerHTML='<span style="filter:drop-shadow(0 0 5px var(--accent))">💎</span>')):"loss"!==t&&"cashout"!==t||!mMineIndices?mGameActive&&-1===n?l.addEventListener("click",()=>mRevealCell(e)):l.classList.add("no-hover"):(l.classList.add("no-hover"),mMineIndices.includes(e)?(l.classList.add("mine-hidden"),l.style.animationDelay=60*mMineIndices.indexOf(e)+"ms",l.textContent="💣","cashout"===t&&(l.style.opacity="0.5")):(l.classList.add("safe-unrevealed"),l.innerHTML='<span style="opacity:0.2">💎</span>')),s.appendChild(l)}}async function mStartGame(){var t=parseFloat(document.getElementById("mBetInput").value);if(isNaN(t)||t<=0)showToast("INVALID BET","lose");else{t=coinsToCents(t);if(t>balance)showToast("INSUFFICIENT FUNDS","lose");else if(t<1)showToast("MINIMUM BET IS 0.01","lose");else{var n=document.getElementById("mStartBtn");n.disabled=!0,n.textContent="STARTING...";let e;try{e=await window._fb.startGame(t,mCurrentMines)}catch(e){return showToast((e.message||"SERVER ERROR").toUpperCase(),"lose"),n.disabled=!1,void(n.textContent="START GAME")}mGameId=e.gameId,mSeedHash=e.seedHash,balance=e.newBalanceCents,mCurrentBet=t,mMineIndices=null,mPendingCell=-1,mRevealed.clear(),mRevealedIsMine.clear(),mGemsCount=0,mGameActive=!0,updateAllBalances(),document.getElementById("mMineSlider").disabled=!0,document.getElementById("mBetInput").disabled=!0,n.disabled=!0,n.textContent="START GAME",document.getElementById("mCashoutBtn").classList.add("visible"),document.getElementById("mMinesLeft").textContent=mCurrentMines,document.getElementById("mOverlay").classList.remove("show"),mRenderGrid("normal"),mUpdateMultUI()}}}async function mRevealCell(t){if(mGameActive&&!mRevealed.has(t)&&-1===mPendingCell){mRenderGrid("normal",mPendingCell=t);let e;try{e=await window._fb.revealCell(mGameId,t)}catch(e){return mPendingCell=-1,mRenderGrid("normal"),void showToast("CONNECTION ERROR — TRY AGAIN","lose")}mPendingCell=-1,e.isMine?(mRevealed.add(t),mRevealedIsMine.set(t,!0),mMineIndices=e.mineIndices,mRenderGrid("normal"),setTimeout(()=>mRenderGrid("loss"),150),mShowEndScreen(!1,0,e.serverSeed)):(mRevealed.add(t),mRevealedIsMine.set(t,!1),mGemsCount++,mRenderGrid("normal"),mUpdateMultUI(),e.done&&mDoCashout())}}async function mCashout(){mGameActive&&0!==mGemsCount?mDoCashout():0===mGemsCount&&showToast("REVEAL A GEM FIRST","lose")}async function mDoCashout(){mGameActive=!1,mPendingCell=-1;var e=mGameId,t=mGemsCount,t=(mGameId=null,document.getElementById("mCashoutBtn").classList.remove("visible"),document.getElementById("mMineSlider").disabled=!1,document.getElementById("mBetInput").disabled=!1,document.getElementById("mStartBtn").disabled=!1,parseFloat(mCalcMult(t,mCurrentMines))),t=Math.floor(mCurrentBet*t);mMineIndices=null,mRenderGrid("normal");let n=t;try{var s=await window._fb.cashout(e);balance=s.newBalanceCents,mMineIndices=s.mineIndices,n=s.winCents}catch(e){console.warn("Cashout failed, using local:",e),balance+=t,mMineIndices=[]}updateAllBalances(),mRenderGrid("cashout"),mShowEndScreen(!0,n,null)}function mShowEndScreen(e,t,n){document.getElementById("mMinesLeft").textContent="—",document.getElementById("mCashoutAmt").textContent="—",document.getElementById("mGemsFound").textContent="—",document.getElementById("mMultValue").textContent="1.00×",document.getElementById("mProfitAmt").textContent="+0.00";var s=document.getElementById("mOverlayTitle"),l=document.getElementById("mOverlaySub");if(e){e=mCalcMult(mGemsCount,mCurrentMines);s.textContent="+ "+fmtCoins(t),s.style.color="var(--gold)",l.textContent=e+"× — "+mGemsCount+" gem"+(1!==mGemsCount?"s":"")+" found",showToast("CASHED OUT  ◈"+fmtCoins(t),"win"),addHistoryBadge("mHistory",!0,t),setTimeout(()=>document.getElementById("mOverlay").classList.add("show"),400)}else{s.textContent="BOOM!",s.style.color="var(--danger)",l.textContent="Tap anywhere to continue"+(n?" · Seed: "+n.slice(0,16)+"…":""),showToast("MINE HIT  −◈"+fmtCoins(mCurrentBet),"lose"),addHistoryBadge("mHistory",!1,mCurrentBet);const o=document.getElementById("mDismissHint"),i=(setTimeout(()=>o.classList.add("show"),900),document.getElementById("mGridContainer"));function a(){i.removeEventListener("click",a),i.removeEventListener("touchend",a),o.classList.remove("show"),mMineIndices=null,mRevealed.clear(),mRevealedIsMine.clear(),mRenderGrid("normal"),document.getElementById("mOverlay").classList.add("show"),document.getElementById("mOverlayTitle").textContent="MINES",document.getElementById("mOverlayTitle").style.color="var(--accent)",document.getElementById("mOverlaySub").textContent="Set your bet and tap start"}setTimeout(()=>{i.addEventListener("click",a),i.addEventListener("touchend",a,{passive:!0})},950)}}async function mRecoverPendingGame(t){try{var e=await window._fb.bust(t.gameId);balance=e.newBalanceCents,showToast("BET REFUNDED — PAGE REFRESHED","info")}catch(e){t=await window._fb.getUserData(currentUser.uid);t&&(balance=t.balanceCents)}await saveUserMeta({pendingGame:null}),enterSite()}const CRATE_ITEMS=[{name:"Scrap Metal",icon:"🔧",rarity:"grey",mult:.2,weight:20},{name:"Worn Boots",icon:"👟",rarity:"grey",mult:.3,weight:15},{name:"Rusty Key",icon:"🗝️",rarity:"grey",mult:.4,weight:15},{name:"Silver Coin",icon:"💿",rarity:"blue",mult:.8,weight:10},{name:"Glowing Shard",icon:"💎",rarity:"blue",mult:1.2,weight:8},{name:"Magic Scroll",icon:"📜",rarity:"blue",mult:1.5,weight:7},{name:"Dragon Scale",icon:"🐉",rarity:"purple",mult:2.5,weight:6},{name:"Storm Crystal",icon:"⚡",rarity:"purple",mult:3,weight:5},{name:"Shadow Blade",icon:"🗡️",rarity:"purple",mult:3.5,weight:4},{name:"Golden Idol",icon:"🏆",rarity:"gold",mult:5,weight:3},{name:"Star Fragment",icon:"⭐",rarity:"gold",mult:7,weight:2},{name:"Divine Crown",icon:"👑",rarity:"gold",mult:10,weight:1.5},{name:"Inferno Core",icon:"🔥",rarity:"red",mult:15,weight:.8},{name:"Void Catalyst",icon:"🌌",rarity:"red",mult:25,weight:.5},{name:"Ancient Relic",icon:"🌟",rarity:"red",mult:50,weight:.2}],CRATE_TOTAL_WEIGHT=CRATE_ITEMS.reduce((e,t)=>e+t.weight,0);let cOpens=0,cBestCents=0;function cSetBet(e,t){var n=document.getElementById("cBetInput"),s=parseFloat(n.value)||0;n.value=void 0!==t?t:Math.max(1,Math.floor(s*e))}function cSetBetMax(){document.getElementById("cBetInput").value=centsToCoins(balance).toFixed(0)}function cPickItem(e){let t=0;for(const n of CRATE_ITEMS)if(e<(t+=n.weight/CRATE_TOTAL_WEIGHT))return n;return CRATE_ITEMS[CRATE_ITEMS.length-1]}function cBuildReel(e){const n=document.createElement("div");n.className="reel-track",n.id="cReelTrack";var t=[...CRATE_ITEMS,...CRATE_ITEMS,...CRATE_ITEMS,...CRATE_ITEMS,...CRATE_ITEMS];for(let e=t.length-1;0<e;e--){var s=Math.floor(Math.random()*(e+1));[t[e],t[s]]=[t[s],t[e]]}return[...t.slice(0,40),e,...t.slice(40,50)].forEach(e=>{var t=document.createElement("div");t.className="reel-item rarity-"+e.rarity,t.innerHTML=`<span>${e.icon}</span><span class="item-name">${e.name}</span>`,n.appendChild(t)}),n}async function cOpenCrate(){var t=parseFloat(document.getElementById("cBetInput").value);if(isNaN(t)||t<1)showToast("MINIMUM CRATE COST IS 1","lose");else{const n=coinsToCents(t);if(n>balance)showToast("INSUFFICIENT FUNDS","lose");else{const s=document.getElementById("cOpenBtn");s.disabled=!0,s.textContent="OPENING...";let e;try{e=await window._fb.simpleGame("crate",n,null)}catch(e){return showToast((e.message||"SERVER ERROR").toUpperCase(),"lose"),s.disabled=!1,void(s.textContent="OPEN CRATE")}balance=e.newBalanceCents,updateAllBalances();const l=cPickItem(e.roll),a=Math.floor(n*l.mult),o=document.getElementById("crateDisplay"),i=(o.innerHTML="",document.createElement("div"));i.className="reel-viewport";t=document.createElement("div");t.className="reel-marker";const r=cBuildReel(l);i.appendChild(t),i.appendChild(r),o.appendChild(i);r.style.transform="translateX(0px)",requestAnimationFrame(()=>{requestAnimationFrame(()=>{var e=(i.clientWidth||300)/2-3600-42;r.style.transition="transform 3s cubic-bezier(0.12,0.8,0.4,1)",r.style.transform=`translateX(${e}px)`})}),setTimeout(()=>{o.innerHTML="";var e=document.createElement("div"),e=(e.className="crate-result show",e.innerHTML=`
-      <div class="crate-result-icon">${l.icon}</div>
-      <div class="crate-result-name" style="color:var(--${"grey"===l.rarity?"muted":"blue"===l.rarity?"blue":"purple"===l.rarity?"purple":"gold"===l.rarity?"gold":"danger"})">${l.name}</div>
-      <div class="crate-result-value">◈ ${fmtCoins(a)} (${l.mult}×)</div>
-    `,o.appendChild(e),cOpens++,document.getElementById("cOpens").textContent=cOpens,document.getElementById("cLastWin").textContent=fmtCoins(a),a>cBestCents&&(cBestCents=a,document.getElementById("cBestWin").textContent=fmtCoins(a)),a>=n);e?showToast("WON  ◈"+fmtCoins(a),"win"):showToast("GOT "+l.name+" (◈"+fmtCoins(a)+")","lose"),addHistoryBadge("cHistory",e,a),s.disabled=!1,s.textContent="OPEN CRATE"},3200)}}}let flChoice="heads",flWins=0,flLosses=0,flStreak=0,flFlipping=!1;function flPick(e){flChoice=e,document.getElementById("flPickHeads").classList.toggle("selected","heads"===e),document.getElementById("flPickTails").classList.toggle("selected","tails"===e)}function flSetBet(e,t){var n=document.getElementById("flBetInput"),s=parseFloat(n.value)||0;n.value=void 0!==t?t:Math.max(.01,parseFloat((s*e).toFixed(2)))}function flSetBetMax(){document.getElementById("flBetInput").value=centsToCoins(balance).toFixed(2)}async function flFlip(){if(!flFlipping){var t=parseFloat(document.getElementById("flBetInput").value);if(isNaN(t)||t<=0)showToast("INVALID BET","lose");else{const n=coinsToCents(t);if(n>balance)showToast("INSUFFICIENT FUNDS","lose");else{flFlipping=!0;const s=document.getElementById("flFlipBtn"),l=(s.disabled=!0,document.getElementById("flResultLabel"));l.className="coin-result-label",l.textContent="";let e;try{e=await window._fb.simpleGame("coinflip",n,flChoice)}catch(e){return showToast((e.message||"SERVER ERROR").toUpperCase(),"lose"),s.disabled=!1,void(flFlipping=!1)}balance=e.newBalanceCents,updateAllBalances();const a=e.won,o=e.outcome,i=document.getElementById("flCoin");t="heads"===o?1440:1620;i.style.setProperty("--final-rot",t+"deg"),i.classList.add("flipping"),setTimeout(()=>{i.classList.remove("flipping"),i.style.transform=`rotateY(${"heads"===o?1440:1620}deg)`,l.textContent=a?"YOU WIN!":"YOU LOSE",l.className="coin-result-label show "+(a?"win":"lose"),flWins+=a?1:0,flLosses+=a?0:1,flStreak=a?flStreak+1:0,document.getElementById("flWins").textContent=flWins,document.getElementById("flLosses").textContent=flLosses,document.getElementById("flStreak").textContent=flStreak,a?showToast("YOU WIN  ◈"+fmtCoins(e.winCents??n),"win"):showToast("YOU LOSE  −◈"+fmtCoins(n),"lose"),addHistoryBadge("flHistory",a,a?e.winCents??n:n),setTimeout(()=>{i.style.transition="none",i.style.transform="rotateY(0deg)",i.offsetWidth,i.style.transition="",s.disabled=!1,flFlipping=!1},1800)},1450)}}}}const SL_SYMBOLS=[{s:"🍊",weight:18},{s:"🍇",weight:15},{s:"⭐",weight:13},{s:"🔔",weight:11},{s:"🍋",weight:10},{s:"🍒",weight:9},{s:"💎",weight:6},{s:"7️⃣",weight:3}],SL_TOTAL_W=SL_SYMBOLS.reduce((e,t)=>e+t.weight,0),SL_PAY3={"7️⃣":50,"💎":25,"🍒":10,"🍋":8,"🔔":6,"🍇":5,"⭐":4,"🍊":3},SL_PAY_PAIR=1.5,SL_PAY_TWO7=3,REEL_VISIBLE=3,REEL_EXTRA=20,SL_SYMBOL_H=72;let slSpinning=!1,slAutoCount=0,slAutoTotal=0,slSpinCount=0,slBestCents=0,slAutoTimer=null;function slPickSymbol(e=!1){var e=e?SL_SYMBOLS.filter(e=>"7️⃣"!==e.s):SL_SYMBOLS,t=e.reduce((e,t)=>e+t.weight,0);let n=Math.random()*t;for(const s of e)if((n-=s.weight)<=0)return s.s;return e[e.length-1].s}function slBuildStrip(e){var t=[];for(let e=0;e<REEL_EXTRA;e++)t.push(slPickSymbol());return t.push(...e),t}function slRenderReel(e,t){const n=document.getElementById("slInner"+e);n.style.transition="none",n.style.transform="translateY(0)",n.innerHTML="",t.forEach(e=>{var t=document.createElement("div");t.className="slot-symbol",t.textContent=e,n.appendChild(t)})}function slInitReels(){for(let e=0;e<3;e++){var t=[slPickSymbol(),slPickSymbol(),slPickSymbol()],t=(slRenderReel(e,slBuildStrip(t)),document.getElementById("slInner"+e)),n=REEL_EXTRA+REEL_VISIBLE;t.style.transform=`translateY(-${(n-REEL_VISIBLE)*SL_SYMBOL_H}px)`}}function slAnimReel(a,o,i){return new Promise(e=>{var t=slBuildStrip(o);slRenderReel(a,t);const n=document.getElementById("slInner"+a),s=(t.length-REEL_VISIBLE)*SL_SYMBOL_H;s,REEL_EXTRA,SL_SYMBOL_H;const l=600+220*a;setTimeout(()=>{n.style.transition=`transform ${l}ms cubic-bezier(0.25, 0.1, 0.25, 1)`,n.style.transform=`translateY(-${s}px)`,setTimeout(e,60+l)},i)})}function slSetBet(e,t){var n=document.getElementById("slBetInput"),s=parseFloat(n.value)||0;n.value=void 0!==t?t:Math.max(1,Math.floor(s*e))}function slSetBetMax(){document.getElementById("slBetInput").value=Math.floor(centsToCoins(balance))}function slSetAuto(n){slAutoCount=n,slAutoTotal=n,["slAutoOff","slAuto5","slAuto10","slAuto25"].forEach(e=>{var t=document.getElementById(e),e="slAutoOff"===e&&0===n||"slAuto5"===e&&5===n||"slAuto10"===e&&10===n||"slAuto25"===e&&25===n;t.style.background=e?"var(--accent-dim)":"var(--surface)",t.style.borderColor=e?"var(--accent)":"var(--border)",t.style.color=e?"var(--accent)":"var(--muted)"}),document.getElementById("slAutoLeft").textContent=0<n?n:"—",0<n&&!slSpinning&&slSpin()}async function slSpin(){if(!slSpinning){var t=parseFloat(document.getElementById("slBetInput").value);if(isNaN(t)||t<1)showToast("MINIMUM BET IS 1","lose"),slAutoCount=0;else{t=coinsToCents(t);if(t>balance)showToast("INSUFFICIENT FUNDS","lose"),slAutoCount=0;else{slSpinning=!0;var n=document.getElementById("slSpinBtn"),s=(n.disabled=!0,document.getElementById("slWinDisplay")),l=(s.className="slot-win-display",s.textContent="",document.getElementById("slLights"));l.classList.add("on"),l.classList.remove("jackpot"),document.getElementById("slReelsWrap").classList.remove("jackpot");let e;try{e=await window._fb.simpleGame("slots",t,null)}catch(e){return showToast((e.message||"SERVER ERROR").toUpperCase(),"lose"),slSpinning=!1,n.disabled=!1,l.classList.remove("on"),void(slAutoCount=0)}balance=e.newBalanceCents,updateAllBalances();var a=slDetermineReels(e.roll,t,e.payout),a=(await Promise.all([slAnimReel(0,a[0],0),slAnimReel(1,a[1],0),slAnimReel(2,a[2],0)]),a.map(e=>e[1])),o=e.payout,i=0<o,a=a.every(e=>"7️⃣"===e);if(l.classList.remove("on"),a){l.classList.add("jackpot"),document.getElementById("slReelsWrap").classList.add("jackpot"),s.textContent="🎰 JACKPOT! +◈"+fmtCoins(o),s.className="slot-win-display show jackpot",showToast("🎰 JACKPOT!  ◈"+fmtCoins(o),"win");for(let e=0;e<3;e++){var r=document.getElementById("slInner"+e).querySelectorAll(".slot-symbol"),m=r.length-2;r[m]&&r[m].classList.add("win-flash")}}else i?(s.textContent="+◈"+fmtCoins(o),s.className="slot-win-display show win",showToast("WIN  ◈"+fmtCoins(o),"win")):(s.textContent="NO WIN",s.className="slot-win-display show lose");slSpinCount++,document.getElementById("slSpins").textContent=slSpinCount,o>slBestCents&&(slBestCents=o,document.getElementById("slBest").textContent=fmtCoins(o)),addHistoryBadge("slHistory",i,i?o:t),0<slAutoCount&&(slAutoCount--,document.getElementById("slAutoLeft").textContent=0<slAutoCount?slAutoCount:"—",0===slAutoCount)&&slSetAuto(0),slSpinning=!1,n.disabled=!1,0<slAutoCount&&balance>=t?slAutoTimer=setTimeout(slSpin,600):0<slAutoCount&&(slSetAuto(slAutoCount=0),showToast("AUTO-SPIN STOPPED — INSUFFICIENT FUNDS","lose"))}}}}function slDetermineReels(e,t,n){n/=t;let s=null;49<=n?s="7️⃣":24<=n?s="💎":9<=n?s="🍒":7<=n?s="🍋":5<=n?s="🔔":4<=n?s="🍇":3.5<=n?s="⭐":2.5<=n&&(s="🍊");var l=[];if(s)if(1.4<=n&&n<3){var a=2.5<=n?"7️⃣":slPickSymbol(!0),o=slPickSymbol(!0),i=Math.floor(3*e);for(let e=0;e<3;e++){var r=e===i?o:a;l.push([slPickSymbol(),r,slPickSymbol()])}}else for(let e=0;e<3;e++)l.push([slPickSymbol(),s,slPickSymbol()]);else{let e=0;do{for(let e=l.length=0;e<3;e++)l.push([slPickSymbol(),slPickSymbol(),slPickSymbol()])}while(e++,l[0][1]===l[1][1]&&l[1][1]===l[2][1]&&e<20)}return l}let slInitDone=!1;const _origSwitchGame=switchGame;switchGame=function(e){_origSwitchGame(e),"slots"!==e||slInitDone||(slInitDone=!0,slInitReels())},setTimeout(()=>{fbReady||(document.getElementById("loadingScreen").classList.add("hidden"),document.getElementById("authScreen").classList.remove("hidden"),document.getElementById("authError").textContent="COULD NOT CONNECT TO FIREBASE")},1e4);
+<script>
+// ══════════════════════════════════════════════════════════════
+//  SHARED STATE
+// ══════════════════════════════════════════════════════════════
+let currentUser = null;
+let balance     = 0;       // integer cents, shared across all games
+let currentTab  = 'login';
+let fbReady     = false;
+let currentGame = 'mines';
+
+function coinsToCents(c) { return Math.round(c * 100); }
+function centsToCoins(c) { return c / 100; }
+function fmtCoins(cents) {
+  return (cents/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+// Update ALL balance displays across every game
+function updateAllBalances() {
+  const f = fmtCoins(balance);
+  document.getElementById('mBalanceAmt').textContent  = f;
+  document.getElementById('cBalanceAmt').textContent  = f;
+  document.getElementById('flBalanceAmt').textContent = f;
+  document.getElementById('slBalanceAmt').textContent = f;
+  document.getElementById('navBalance').textContent   = f;
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast ' + type + ' show';
+  clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+// ── NAV ──────────────────────────────────────────────────────
+function switchGame(name) {
+  currentGame = name;
+  // Cancel any running auto-spin when switching away from slots
+  if (name !== 'slots' && slAutoTimer) {
+    clearTimeout(slAutoTimer); slAutoTimer = null;
+    slAutoCount = 0;
+  }
+  ['mines','crate','coin','slots'].forEach(g => {
+    document.getElementById('nav' + g.charAt(0).toUpperCase() + g.slice(1))
+      .classList.toggle('active', g === name);
+    document.getElementById('page' + g.charAt(0).toUpperCase() + g.slice(1))
+      .classList.toggle('active', g === name);
+  });
+  // Init slots reels on first visit
+  if (name === 'slots' && !slInitDone) {
+    slInitDone = true;
+    slInitReels();
+  }
+}
+
+// ── AUTH ──────────────────────────────────────────────────────
+window._onFirebaseUser = function(data) {
+  currentUser = data;
+  balance = data.balanceCents != null ? data.balanceCents : coinsToCents(data.balance || 1000);
+  fbReady = true;
+  document.getElementById('loadingScreen').classList.add('hidden');
+  loadAllHistory(currentUser.history || []);
+  if (data.pendingGame) mRecoverPendingGame(data.pendingGame);
+  else enterSite();
+};
+window._showAuth = function() {
+  fbReady = true;
+  document.getElementById('loadingScreen').classList.add('hidden');
+  document.getElementById('authScreen').classList.remove('hidden');
+};
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tabLogin').classList.toggle('active', tab==='login');
+  document.getElementById('tabRegister').classList.toggle('active', tab==='register');
+  document.getElementById('authBtn').textContent = tab==='login' ? 'LOGIN' : 'CREATE ACCOUNT';
+  document.getElementById('usernameField').style.display = tab==='register' ? 'flex' : 'none';
+  document.getElementById('authError').textContent = '';
+}
+
+async function handleAuth() {
+  const email = document.getElementById('authEmail').value.trim();
+  const pass  = document.getElementById('authPass').value;
+  const name  = document.getElementById('authName').value.trim();
+  const errEl = document.getElementById('authError');
+  const btn   = document.getElementById('authBtn');
+  errEl.textContent = '';
+  if (!email||!email.includes('@'))  { errEl.textContent='ENTER A VALID EMAIL'; return; }
+  if (!pass||pass.length<6)          { errEl.textContent='PASSWORD MUST BE 6+ CHARACTERS'; return; }
+  if (currentTab==='register'&&(!name||name.length<2)) { errEl.textContent='ENTER A DISPLAY NAME'; return; }
+  btn.disabled=true; btn.textContent='...';
+  try {
+    if (currentTab==='register') {
+      currentUser = await window._fb.register(email,pass,name);
+      balance = currentUser.balanceCents??coinsToCents(1000);
+      showToast('WELCOME, '+name.toUpperCase()+'!','info');
+    } else {
+      currentUser = await window._fb.login(email,pass);
+      balance = currentUser.balanceCents??coinsToCents(currentUser.balance||1000);
+      showToast('WELCOME BACK!','info');
+    }
+    loadAllHistory(currentUser.history||[]);
+    if (currentUser.pendingGame) mRecoverPendingGame(currentUser.pendingGame);
+    else enterSite();
+  } catch(e) {
+    const code=e.code||'';
+    errEl.textContent=(
+      code==='auth/user-not-found'      ?'ACCOUNT NOT FOUND':
+      code==='auth/wrong-password'       ?'INCORRECT PASSWORD':
+      code==='auth/invalid-credential'   ?'INVALID EMAIL OR PASSWORD':
+      code==='auth/email-already-in-use' ?'EMAIL ALREADY REGISTERED':
+      code==='auth/too-many-requests'    ?'TOO MANY ATTEMPTS — TRY LATER':
+      (e.message||'SOMETHING WENT WRONG').toUpperCase()
+    );
+  }
+  btn.disabled=false;
+  btn.textContent=currentTab==='login'?'LOGIN':'CREATE ACCOUNT';
+}
+
+function enterSite() {
+  document.getElementById('authScreen').classList.add('hidden');
+  document.getElementById('siteWrapper').style.display='flex';
+  document.getElementById('navUser').textContent=(currentUser.username||currentUser.email||'—').toUpperCase();
+  updateAllBalances();
+  mRenderGrid();
+}
+
+async function logoutUser() {
+  // Stop auto-spin before logging out
+  if (slAutoTimer) { clearTimeout(slAutoTimer); slAutoTimer = null; }
+  slAutoCount = 0; slAutoTotal = 0;
+  if (mGameActive && mGameId) {
+    const gid=mGameId; mGameActive=false; mGameId=null;
+    window._fb.bust(gid).catch(()=>{});
+  }
+  await window._fb.logout();
+  currentUser=null; balance=0; mGameActive=false; mGameId=null; mMineIndices=null; mPendingCell=-1;
+  document.getElementById('siteWrapper').style.display='none';
+  document.getElementById('authScreen').classList.remove('hidden');
+  document.getElementById('authEmail').value=document.getElementById('authPass').value='';
+  document.getElementById('authError').textContent='';
+  ['mHistory','cHistory','flHistory'].forEach(id=>{
+    document.getElementById(id).innerHTML='<span class="history-label">History</span>';
+  });
+}
+
+async function saveUserMeta(extra={}) {
+  if (!currentUser) return;
+  try {
+    await window._fb.saveUserMeta(currentUser.uid,{
+      gamesPlayed:currentUser.gamesPlayed,
+      history:currentUser.history,...extra
+    });
+  } catch(e){console.warn('Meta save failed:',e);}
+}
+
+// Load history into all three tabs
+function loadAllHistory(hist) {
+  ['mHistory','cHistory','flHistory','slHistory'].forEach(id=>{
+    document.getElementById(id).innerHTML='<span class="history-label">History</span>';
+  });
+  [...hist].slice(0,10).reverse().forEach(item=>{
+    const cents=item.amountCents??coinsToCents(item.amount||0);
+    const badge=makeBadge(item.won,cents);
+    // Add to relevant game history
+    const gameId=item.game||'mines';
+    const histEl=document.getElementById(
+      gameId==='crate'?'cHistory':gameId==='coin'?'flHistory':gameId==='slots'?'slHistory':'mHistory'
+    );
+    const all=histEl.querySelectorAll('.history-badge');
+    if(all.length>=10) all[all.length-1].remove();
+    histEl.insertBefore(badge,histEl.children[1]);
+  });
+}
+
+function makeBadge(won,amountCents) {
+  const b=document.createElement('span');
+  b.className='history-badge '+(won?'win':'lose');
+  b.textContent=(won?'+':'−')+'◈'+fmtCoins(amountCents);
+  return b;
+}
+function addHistoryBadge(histElId,won,amountCents) {
+  const h=document.getElementById(histElId);
+  const b=makeBadge(won,amountCents);
+  const all=h.querySelectorAll('.history-badge');
+  if(all.length>=10) all[all.length-1].remove();
+  h.insertBefore(b,h.children[1]);
+  // Persist to currentUser history
+  if(currentUser){
+    currentUser.gamesPlayed=(currentUser.gamesPlayed||0)+1;
+    currentUser.history=[
+      {won,amountCents,game:histElId==='cHistory'?'crate':histElId==='flHistory'?'coin':histElId==='slHistory'?'slots':'mines',ts:Date.now()},
+      ...(currentUser.history||[])
+    ].slice(0,20);
+    document.getElementById('navUser').textContent=(currentUser.username||'').toUpperCase();
+    saveUserMeta({pendingGame:null});
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+//  MINES GAME
+// ════════════════════════════════════════════════════════════
+const M_GRID = 25;
+let mGameId   = null, mSeedHash=null, mMineIndices=null;
+let mRevealed = new Set(), mRevealedIsMine = new Map();
+let mPendingCell=-1, mGameActive=false, mCurrentBet=0, mCurrentMines=3, mGemsCount=0;
+
+function mCalcMult(revealed,mines) {
+  if(revealed===0)return'1.00';
+  const safe=M_GRID-mines; let num=1,den=1;
+  for(let i=0;i<revealed;i++){num*=(M_GRID-i);den*=(safe-i);}
+  return((num/den)*0.97).toFixed(2);
+}
+function mUpdateMineCount(v){
+  mCurrentMines=parseInt(v);
+  document.getElementById('mMineCountDisp').textContent=v;
+  document.getElementById('mMineCountLabel').textContent=v;
+}
+function mUpdateMultUI(){
+  const m=mCalcMult(mGemsCount,mCurrentMines);
+  const bet=centsToCoins(mCurrentBet);
+  document.getElementById('mMultValue').textContent=m+'×';
+  document.getElementById('mProfitAmt').textContent='+'+(parseFloat(m)*bet-bet).toFixed(2);
+  document.getElementById('mGemsFound').textContent=mGemsCount;
+  document.getElementById('mCashoutAmt').textContent=
+    mGemsCount>0?fmtCoins(Math.floor(mCurrentBet*parseFloat(m))):'—';
+}
+function mSetBet(mult,fixed){
+  const inp=document.getElementById('mBetInput');
+  const cur=parseFloat(inp.value)||0;
+  inp.value=fixed!==undefined?fixed:Math.max(0.01,parseFloat((cur*mult).toFixed(2)));
+}
+function mSetBetMax(){document.getElementById('mBetInput').value=centsToCoins(balance).toFixed(2);}
+
+function mRenderGrid(mode='normal',pendingIdx=-1){
+  const grid=document.getElementById('mGrid'); grid.innerHTML='';
+  for(let i=0;i<M_GRID;i++){
+    const cell=document.createElement('div'); cell.className='cell';
+    if(i===pendingIdx){
+      cell.classList.add('gem','pending','no-hover');
+      cell.innerHTML='<span style="filter:drop-shadow(0 0 5px var(--accent));opacity:0.7">💎</span>';
+    } else if(mRevealed.has(i)){
+      cell.classList.add('no-hover');
+      if(mRevealedIsMine.get(i)){cell.classList.add('mine-hit');cell.textContent='💣';}
+      else{cell.classList.add('gem');cell.innerHTML='<span style="filter:drop-shadow(0 0 5px var(--accent))">💎</span>';}
+    } else if((mode==='loss'||mode==='cashout')&&mMineIndices){
+      cell.classList.add('no-hover');
+      if(mMineIndices.includes(i)){
+        cell.classList.add('mine-hidden');
+        cell.style.animationDelay=(mMineIndices.indexOf(i)*60)+'ms';
+        cell.textContent='💣';
+        if(mode==='cashout')cell.style.opacity='0.5';
+      } else {cell.classList.add('safe-unrevealed');cell.innerHTML='<span style="opacity:0.2">💎</span>';}
+    } else {
+      if(mGameActive&&pendingIdx===-1) cell.addEventListener('click',()=>mRevealCell(i));
+      else cell.classList.add('no-hover');
+    }
+    grid.appendChild(cell);
+  }
+}
+
+async function mStartGame(){
+  const betCoins=parseFloat(document.getElementById('mBetInput').value);
+  if(isNaN(betCoins)||betCoins<=0){showToast('INVALID BET','lose');return;}
+  const betCents=coinsToCents(betCoins);
+  if(betCents>balance){showToast('INSUFFICIENT FUNDS','lose');return;}
+  if(betCents<1){showToast('MINIMUM BET IS 0.01','lose');return;}
+  const btn=document.getElementById('mStartBtn');
+  btn.disabled=true;btn.textContent='STARTING...';
+  let result;
+  try{result=await window._fb.startGame(betCents,mCurrentMines);}
+  catch(e){showToast((e.message||'SERVER ERROR').toUpperCase(),'lose');btn.disabled=false;btn.textContent='START GAME';return;}
+  mGameId=result.gameId; mSeedHash=result.seedHash; balance=result.newBalanceCents;
+  mCurrentBet=betCents; mMineIndices=null; mPendingCell=-1;
+  mRevealed.clear(); mRevealedIsMine.clear(); mGemsCount=0; mGameActive=true;
+  updateAllBalances();
+  document.getElementById('mMineSlider').disabled=true;
+  document.getElementById('mBetInput').disabled=true;
+  btn.disabled=true; btn.textContent='START GAME';
+  document.getElementById('mCashoutBtn').classList.add('visible');
+  document.getElementById('mMinesLeft').textContent=mCurrentMines;
+  document.getElementById('mOverlay').classList.remove('show');
+  mRenderGrid('normal'); mUpdateMultUI();
+}
+
+async function mRevealCell(index){
+  if(!mGameActive||mRevealed.has(index)||mPendingCell!==-1)return;
+  mPendingCell=index; mRenderGrid('normal',mPendingCell);
+  let result;
+  try{result=await window._fb.revealCell(mGameId,index);}
+  catch(e){mPendingCell=-1;mRenderGrid('normal');showToast('CONNECTION ERROR — TRY AGAIN','lose');return;}
+  mPendingCell=-1;
+  if(result.isMine){
+    mRevealed.add(index); mRevealedIsMine.set(index,true); mMineIndices=result.mineIndices;
+    mRenderGrid('normal'); setTimeout(()=>mRenderGrid('loss'),150);
+    mShowEndScreen(false,0,result.serverSeed);
+  } else {
+    mRevealed.add(index); mRevealedIsMine.set(index,false); mGemsCount++;
+    mRenderGrid('normal'); mUpdateMultUI();
+    if(result.done) mDoCashout();
+  }
+}
+
+async function mCashout(){
+  if(!mGameActive||mGemsCount===0){if(mGemsCount===0)showToast('REVEAL A GEM FIRST','lose');return;}
+  mDoCashout();
+}
+async function mDoCashout(){
+  mGameActive=false; mPendingCell=-1;
+  const gid=mGameId; const gemsAtCashout=mGemsCount; mGameId=null;
+  document.getElementById('mCashoutBtn').classList.remove('visible');
+  document.getElementById('mMineSlider').disabled=false;
+  document.getElementById('mBetInput').disabled=false;
+  document.getElementById('mStartBtn').disabled=false;
+  const localMult=parseFloat(mCalcMult(gemsAtCashout,mCurrentMines));
+  const localPayout=Math.floor(mCurrentBet*localMult);
+  mMineIndices=null; mRenderGrid('normal');
+  let winAmt=localPayout;
+  try{
+    const r=await window._fb.cashout(gid);
+    balance=r.newBalanceCents; mMineIndices=r.mineIndices; winAmt=r.winCents;
+  }catch(e){
+    console.warn('Cashout failed, using local:',e);
+    balance+=localPayout; mMineIndices=[];
+  }
+  updateAllBalances(); mRenderGrid('cashout'); mShowEndScreen(true,winAmt,null);
+}
+
+function mShowEndScreen(won,amountCents,serverSeed){
+  document.getElementById('mMinesLeft').textContent='—';
+  document.getElementById('mCashoutAmt').textContent='—';
+  document.getElementById('mGemsFound').textContent='—';
+  document.getElementById('mMultValue').textContent='1.00×';
+  document.getElementById('mProfitAmt').textContent='+0.00';
+  const title=document.getElementById('mOverlayTitle');
+  const sub=document.getElementById('mOverlaySub');
+  if(won){
+    const m=mCalcMult(mGemsCount,mCurrentMines);
+    title.textContent='+ '+fmtCoins(amountCents); title.style.color='var(--gold)';
+    sub.textContent=m+'× — '+mGemsCount+' gem'+(mGemsCount!==1?'s':'')+' found';
+    showToast('CASHED OUT  ◈'+fmtCoins(amountCents),'win');
+    addHistoryBadge('mHistory',true,amountCents);
+    setTimeout(()=>document.getElementById('mOverlay').classList.add('show'),400);
+  } else {
+    title.textContent='BOOM!'; title.style.color='var(--danger)';
+    sub.textContent='Tap anywhere to continue'+(serverSeed?' · Seed: '+serverSeed.slice(0,16)+'…':'');
+    showToast('MINE HIT  −◈'+fmtCoins(mCurrentBet),'lose');
+    addHistoryBadge('mHistory',false,mCurrentBet);
+    const hint=document.getElementById('mDismissHint');
+    setTimeout(()=>hint.classList.add('show'),900);
+    const gc=document.getElementById('mGridContainer');
+    function onDismiss(){
+      gc.removeEventListener('click',onDismiss); gc.removeEventListener('touchend',onDismiss);
+      hint.classList.remove('show'); mMineIndices=null; mRevealed.clear(); mRevealedIsMine.clear();
+      mRenderGrid('normal');
+      document.getElementById('mOverlay').classList.add('show');
+      document.getElementById('mOverlayTitle').textContent='MINES';
+      document.getElementById('mOverlayTitle').style.color='var(--accent)';
+      document.getElementById('mOverlaySub').textContent='Set your bet and tap start';
+    }
+    setTimeout(()=>{gc.addEventListener('click',onDismiss);gc.addEventListener('touchend',onDismiss,{passive:true});},950);
+  }
+}
+
+async function mRecoverPendingGame(pending){
+  try{const r=await window._fb.bust(pending.gameId);balance=r.newBalanceCents;showToast('BET REFUNDED — PAGE REFRESHED','info');}
+  catch(_){const f=await window._fb.getUserData(currentUser.uid);if(f)balance=f.balanceCents;}
+  await saveUserMeta({pendingGame:null}); enterSite();
+}
+
+// ════════════════════════════════════════════════════════════
+//  CRATE GAME
+// ════════════════════════════════════════════════════════════
+const CRATE_ITEMS = [
+  // { name, icon, rarity, multiplier, weight }
+  {name:'Scrap Metal',    icon:'🔧', rarity:'grey',   mult:0.2,  weight:20},
+  {name:'Worn Boots',     icon:'👟', rarity:'grey',   mult:0.3,  weight:15},
+  {name:'Rusty Key',      icon:'🗝️', rarity:'grey',   mult:0.4,  weight:15},
+  {name:'Silver Coin',    icon:'💿', rarity:'blue',   mult:0.8,  weight:10},
+  {name:'Glowing Shard',  icon:'💎', rarity:'blue',   mult:1.2,  weight:8},
+  {name:'Magic Scroll',   icon:'📜', rarity:'blue',   mult:1.5,  weight:7},
+  {name:'Dragon Scale',   icon:'🐉', rarity:'purple', mult:2.5,  weight:6},
+  {name:'Storm Crystal',  icon:'⚡', rarity:'purple', mult:3.0,  weight:5},
+  {name:'Shadow Blade',   icon:'🗡️', rarity:'purple', mult:3.5,  weight:4},
+  {name:'Golden Idol',    icon:'🏆', rarity:'gold',   mult:5.0,  weight:3},
+  {name:'Star Fragment',  icon:'⭐', rarity:'gold',   mult:7.0,  weight:2},
+  {name:'Divine Crown',   icon:'👑', rarity:'gold',   mult:10.0, weight:1.5},
+  {name:'Inferno Core',   icon:'🔥', rarity:'red',    mult:15.0, weight:0.8},
+  {name:'Void Catalyst',  icon:'🌌', rarity:'red',    mult:25.0, weight:0.5},
+  {name:'Ancient Relic',  icon:'🌟', rarity:'red',    mult:50.0, weight:0.2},
+];
+
+const CRATE_TOTAL_WEIGHT = CRATE_ITEMS.reduce((s,i)=>s+i.weight,0);
+let cOpens=0, cBestCents=0;
+
+function cSetBet(mult,fixed){
+  const inp=document.getElementById('cBetInput');
+  const cur=parseFloat(inp.value)||0;
+  inp.value=fixed!==undefined?fixed:Math.max(1,Math.floor(cur*mult));
+}
+function cSetBetMax(){document.getElementById('cBetInput').value=centsToCoins(balance).toFixed(0);}
+
+function cPickItem(rng) {
+  let acc=0;
+  for(const item of CRATE_ITEMS){
+    acc+=item.weight/CRATE_TOTAL_WEIGHT;
+    if(rng<acc)return item;
+  }
+  return CRATE_ITEMS[CRATE_ITEMS.length-1];
+}
+
+// Build a long reel that ends on the winning item
+function cBuildReel(winItem) {
+  const track=document.createElement('div'); track.className='reel-track'; track.id='cReelTrack';
+  const pool=[...CRATE_ITEMS,...CRATE_ITEMS,...CRATE_ITEMS,...CRATE_ITEMS,...CRATE_ITEMS];
+  // Shuffle pool
+  for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
+  // 40 prefix items + win item at index 40 + 10 suffix
+  const reel=[...pool.slice(0,40),winItem,...pool.slice(40,50)];
+  reel.forEach(item=>{
+    const el=document.createElement('div');
+    el.className=`reel-item rarity-${item.rarity}`;
+    el.innerHTML=`<span>${item.icon}</span><span class="item-name">${item.name}</span>`;
+    track.appendChild(el);
+  });
+  return track;
+}
+
+async function cOpenCrate(){
+  const betCoins=parseFloat(document.getElementById('cBetInput').value);
+  if(isNaN(betCoins)||betCoins<1){showToast('MINIMUM CRATE COST IS 1','lose');return;}
+  const betCents=coinsToCents(betCoins);
+  if(betCents>balance){showToast('INSUFFICIENT FUNDS','lose');return;}
+  const btn=document.getElementById('cOpenBtn');
+  btn.disabled=true; btn.textContent='OPENING...';
+
+  let result;
+  try {
+    result = await window._fb.simpleGame('crate', betCents, null);
+  } catch(e) {
+    showToast((e.message||'SERVER ERROR').toUpperCase(),'lose');
+    btn.disabled=false; btn.textContent='OPEN CRATE'; return;
+  }
+
+  balance = result.newBalanceCents;
+  updateAllBalances();
+
+  // Pick item based on server-provided roll (0-1 float)
+  const serverRoll = result.roll; // server returns deterministic roll
+  const wonItem = cPickItem(serverRoll);
+  const winCents = Math.floor(betCents * wonItem.mult);
+
+  // Build and animate the reel
+  const display = document.getElementById('crateDisplay');
+  display.innerHTML = '';
+  const viewport = document.createElement('div'); viewport.className='reel-viewport';
+  const marker   = document.createElement('div'); marker.className='reel-marker';
+  const track    = cBuildReel(wonItem);
+  viewport.appendChild(marker); viewport.appendChild(track);
+  display.appendChild(viewport);
+
+  // Animate: scroll so item 40 (win) is centred
+  // We defer to next paint so viewport.clientWidth is available
+  const itemW = 84+6; // width + gap
+  track.style.transform='translateX(0px)';
+  requestAnimationFrame(()=>{
+    requestAnimationFrame(()=>{
+      const vw = viewport.clientWidth || 300; // fallback if not yet painted
+      const targetX = -(40 * itemW) + (vw / 2) - 42;
+      track.style.transition='transform 3s cubic-bezier(0.12,0.8,0.4,1)';
+      track.style.transform=`translateX(${targetX}px)`;
+    });
+  });
+
+  // After spin, show result
+  setTimeout(()=>{
+    display.innerHTML='';
+    const resultDiv=document.createElement('div'); resultDiv.className='crate-result show';
+    resultDiv.innerHTML=`
+      <div class="crate-result-icon">${wonItem.icon}</div>
+      <div class="crate-result-name" style="color:var(--${wonItem.rarity==='grey'?'muted':wonItem.rarity==='blue'?'blue':wonItem.rarity==='purple'?'purple':wonItem.rarity==='gold'?'gold':'danger'})">${wonItem.name}</div>
+      <div class="crate-result-value">◈ ${fmtCoins(winCents)} (${wonItem.mult}×)</div>
+    `;
+    display.appendChild(resultDiv);
+    // Update stats
+    cOpens++; document.getElementById('cOpens').textContent=cOpens;
+    document.getElementById('cLastWin').textContent=fmtCoins(winCents);
+    if(winCents>cBestCents){cBestCents=winCents;document.getElementById('cBestWin').textContent=fmtCoins(winCents);}
+    const won=winCents>=betCents;
+    if(won)showToast('WON  ◈'+fmtCoins(winCents),'win');
+    else   showToast('GOT '+wonItem.name+' (◈'+fmtCoins(winCents)+')','lose');
+    addHistoryBadge('cHistory',won,winCents);
+    btn.disabled=false; btn.textContent='OPEN CRATE';
+  },3200);
+}
+
+// ════════════════════════════════════════════════════════════
+//  COINFLIP GAME
+// ════════════════════════════════════════════════════════════
+let flChoice='heads', flWins=0, flLosses=0, flStreak=0, flFlipping=false;
+
+function flPick(side){
+  flChoice=side;
+  document.getElementById('flPickHeads').classList.toggle('selected',side==='heads');
+  document.getElementById('flPickTails').classList.toggle('selected',side==='tails');
+}
+function flSetBet(mult,fixed){
+  const inp=document.getElementById('flBetInput');
+  const cur=parseFloat(inp.value)||0;
+  inp.value=fixed!==undefined?fixed:Math.max(0.01,parseFloat((cur*mult).toFixed(2)));
+}
+function flSetBetMax(){document.getElementById('flBetInput').value=centsToCoins(balance).toFixed(2);}
+
+async function flFlip(){
+  if(flFlipping)return;
+  const betCoins=parseFloat(document.getElementById('flBetInput').value);
+  if(isNaN(betCoins)||betCoins<=0){showToast('INVALID BET','lose');return;}
+  const betCents=coinsToCents(betCoins);
+  if(betCents>balance){showToast('INSUFFICIENT FUNDS','lose');return;}
+  flFlipping=true;
+  const btn=document.getElementById('flFlipBtn'); btn.disabled=true;
+  const lbl=document.getElementById('flResultLabel');
+  lbl.className='coin-result-label'; lbl.textContent='';
+
+  let result;
+  try{result=await window._fb.simpleGame('coinflip',betCents,flChoice);}
+  catch(e){showToast((e.message||'SERVER ERROR').toUpperCase(),'lose');btn.disabled=false;flFlipping=false;return;}
+
+  balance=result.newBalanceCents; updateAllBalances();
+  const won=result.won; const outcome=result.outcome; // 'heads' or 'tails'
+
+  // Animate coin — land on correct face
+  const coin=document.getElementById('flCoin');
+  // heads = 0 or 360, tails = 180
+  const finalRot=outcome==='heads'?1440:1620; // 1440=4 full rotations ending heads, 1620=tails
+  coin.style.setProperty('--final-rot',finalRot+'deg');
+  coin.classList.add('flipping');
+
+  // Wait for animation to finish (1400ms) then show result
+  setTimeout(()=>{
+    coin.classList.remove('flipping');
+    // Hold the final face — prevent snap-back by keeping the transform
+    coin.style.transform=`rotateY(${outcome==='heads'?1440:1620}deg)`;
+    lbl.textContent=won?'YOU WIN!':'YOU LOSE';
+    lbl.className='coin-result-label show '+(won?'win':'lose');
+    flWins+=(won?1:0); flLosses+=(won?0:1);
+    flStreak=won?flStreak+1:0;
+    document.getElementById('flWins').textContent=flWins;
+    document.getElementById('flLosses').textContent=flLosses;
+    document.getElementById('flStreak').textContent=flStreak;
+    if(won)showToast('YOU WIN  ◈'+fmtCoins(result.winCents??betCents),'win');
+    else   showToast('YOU LOSE  −◈'+fmtCoins(betCents),'lose');
+    addHistoryBadge('flHistory',won,won?(result.winCents??betCents):betCents);
+    // Reset after a pause so next flip starts from neutral
+    setTimeout(()=>{
+      coin.style.transition='none';
+      coin.style.transform='rotateY(0deg)';
+      // Force a reflow so the transition reset takes effect before re-enabling
+      void coin.offsetWidth;
+      coin.style.transition='';
+      btn.disabled=false; flFlipping=false;
+    },1800);
+  },1450);
+}
+
+// ════════════════════════════════════════════════════════════
+//  SLOTS GAME
+// ════════════════════════════════════════════════════════════
+
+// Symbol definitions — ordered by rarity (rarest last)
+const SL_SYMBOLS = [
+  { s: '🍊', weight: 18 }, // orange    — most common
+  { s: '🍇', weight: 15 }, // grapes
+  { s: '⭐', weight: 13 }, // star
+  { s: '🔔', weight: 11 }, // bell
+  { s: '🍋', weight: 10 }, // lemon
+  { s: '🍒', weight:  9 }, // cherry
+  { s: '💎', weight:  6 }, // diamond
+  { s: '7️⃣', weight:  3 }, // seven — rarest
+];
+const SL_TOTAL_W = SL_SYMBOLS.reduce((s,x) => s + x.weight, 0);
+
+// Payout table: key = symbol emoji, value = multiplier for 3-of-a-kind
+const SL_PAY3 = {
+  '7️⃣': 50, '💎': 25, '🍒': 10, '🍋': 8,
+  '🔔': 6,  '🍇': 5,  '⭐': 4,  '🍊': 3,
+};
+const SL_PAY_PAIR    = 1.5;  // any matching pair (not 3)
+const SL_PAY_TWO7    = 3;    // two sevens (not jackpot)
+const REEL_VISIBLE   = 3;    // symbols visible per reel
+const REEL_EXTRA     = 20;   // extra symbols above visible for spin animation
+const SL_SYMBOL_H    = 72;   // px — must match CSS
+
+let slSpinning  = false;
+let slAutoCount = 0;      // remaining auto-spins
+let slAutoTotal = 0;
+let slSpinCount = 0;
+let slBestCents = -1;     // -1 = no wins yet
+let slAutoTimer = null;
+
+// Pick a random symbol using weighted probability
+function slPickSymbol(excludeJackpot=false) {
+  let pool = excludeJackpot ? SL_SYMBOLS.filter(x => x.s !== '7️⃣') : SL_SYMBOLS;
+  let total = pool.reduce((s,x) => s + x.weight, 0);
+  let r = Math.random() * total;
+  for (const sym of pool) {
+    r -= sym.weight;
+    if (r <= 0) return sym.s;
+  }
+  return pool[pool.length - 1].s;
+}
+
+// Build a reel strip: REEL_EXTRA random symbols + the final visible 3
+function slBuildStrip(finalThree) {
+  const strip = [];
+  for (let i = 0; i < REEL_EXTRA; i++) strip.push(slPickSymbol());
+  strip.push(...finalThree);
+  return strip;
+}
+
+// Render a reel inner with symbols
+function slRenderReel(reelIdx, strip) {
+  const inner = document.getElementById('slInner' + reelIdx);
+  inner.style.transition = 'none';
+  inner.style.transform  = 'translateY(0)';
+  inner.innerHTML = '';
+  strip.forEach(sym => {
+    const div = document.createElement('div');
+    div.className = 'slot-symbol';
+    div.textContent = sym;
+    inner.appendChild(div);
+  });
+}
+
+// Initialise reels to idle state (random symbols)
+function slInitReels() {
+  for (let r = 0; r < 3; r++) {
+    const idle = [slPickSymbol(), slPickSymbol(), slPickSymbol()];
+    slRenderReel(r, slBuildStrip(idle));
+    // Show only the last 3 (centre position)
+    const inner = document.getElementById('slInner' + r);
+    const total  = REEL_EXTRA + REEL_VISIBLE;
+    inner.style.transform = `translateY(-${(total - REEL_VISIBLE) * SL_SYMBOL_H}px)`;
+  }
+}
+
+// Animate one reel spinning and landing on finalThree symbols
+function slAnimReel(reelIdx, finalThree, delay) {
+  return new Promise(resolve => {
+    const strip = slBuildStrip(finalThree);
+    const inner = document.getElementById('slInner' + reelIdx);
+    const total = REEL_EXTRA + REEL_VISIBLE;
+    const endY  = (total - REEL_VISIBLE) * SL_SYMBOL_H; // final resting position
+
+    // Rebuild strip and jump to a "mid-spin" position instantly (no flash at pos 0)
+    slRenderReel(reelIdx, strip);
+    inner.style.transition = 'none';
+    // Start visually at the beginning of the strip (near top) so spin looks long
+    inner.style.transform  = 'translateY(0px)';
+    // Force reflow so the instant jump takes before we apply the transition
+    void inner.offsetHeight;
+
+    const dur = 800 + reelIdx * 150; // base duration increases per reel for stagger feel
+
+    setTimeout(() => {
+      inner.style.transition = `transform ${dur}ms cubic-bezier(0.15, 0.85, 0.35, 1)`;
+      inner.style.transform  = `translateY(-${endY}px)`;
+      setTimeout(resolve, dur + 80);
+    }, delay);
+  });
+}
+
+function slSetBet(mult, fixed) {
+  const inp = document.getElementById('slBetInput');
+  const cur = parseFloat(inp.value) || 0;
+  inp.value = fixed !== undefined ? fixed : Math.max(1, Math.floor(cur * mult));
+}
+function slSetBetMax() {
+  document.getElementById('slBetInput').value = Math.floor(centsToCoins(balance));
+}
+
+function slSetAuto(n) {
+  // Clicking the already-active count turns it off
+  if (slAutoTotal === n && n > 0) n = 0;
+  slAutoCount = n; slAutoTotal = n;
+  if (slAutoTimer) { clearTimeout(slAutoTimer); slAutoTimer = null; }
+  const MAP = {slAutoOff: 0, slAuto5: 5, slAuto10: 10, slAuto25: 25};
+  Object.entries(MAP).forEach(([id, val]) => {
+    const btn = document.getElementById(id);
+    const isActive = (val === n);
+    btn.style.background  = isActive ? 'var(--accent-dim)' : 'var(--surface)';
+    btn.style.borderColor = isActive ? 'var(--accent)'     : 'var(--border)';
+    btn.style.color       = isActive ? 'var(--accent)'     : 'var(--muted)';
+  });
+  document.getElementById('slAutoLeft').textContent = n > 0 ? n : '—';
+  // Start spinning if auto-spin was just enabled and not already running
+  if (n > 0 && !slSpinning) slSpin();
+}
+
+async function slSpin() {
+  if (slSpinning) return;
+  const betCoins = parseFloat(document.getElementById('slBetInput').value);
+  if (isNaN(betCoins) || betCoins < 1) { showToast('MINIMUM BET IS 1', 'lose'); slAutoCount = 0; return; }
+  const betCents = coinsToCents(betCoins);
+  if (betCents > balance) { showToast('INSUFFICIENT FUNDS', 'lose'); slAutoCount = 0; return; }
+
+  slSpinning = true;
+  const btn = document.getElementById('slSpinBtn');
+  btn.disabled = true;
+  const winDisp = document.getElementById('slWinDisplay');
+  winDisp.className = 'slot-win-display'; winDisp.textContent = '';
+
+  // Lights on during spin
+  const lights = document.getElementById('slLights');
+  lights.classList.add('on'); lights.classList.remove('jackpot');
+  document.getElementById('slReelsWrap').classList.remove('jackpot');
+
+  // Call server for result
+  let result;
+  try {
+    result = await window._fb.simpleGame('slots', betCents, null);
+  } catch(e) {
+    showToast((e.message || 'SERVER ERROR').toUpperCase(), 'lose');
+    slSpinning = false; btn.disabled = false;
+    lights.classList.remove('on');
+    slAutoCount = 0;
+    return;
+  }
+
+  balance = result.newBalanceCents;
+  updateAllBalances();
+
+  // Determine which symbols to show based on server's payout
+  const reelSymbols = slDetermineReels(result.outcome, betCents, result.payout);
+
+  // Animate all three reels with stagger: reel 0 stops first, reel 2 last
+  await Promise.all([
+    slAnimReel(0, reelSymbols[0], 0),
+    slAnimReel(1, reelSymbols[1], 200),
+    slAnimReel(2, reelSymbols[2], 400),
+  ]);
+
+  // Show result
+  const midSymbols = reelSymbols.map(r => r[1]); // centre row is index 1
+  const payout     = result.payout;
+  const won        = payout > 0;
+  const isJackpot  = midSymbols.every(s => s === '7️⃣');
+
+  lights.classList.remove('on');
+
+  if (isJackpot) {
+    lights.classList.add('jackpot');
+    document.getElementById('slReelsWrap').classList.add('jackpot');
+    winDisp.textContent = '🎰 JACKPOT! +◈' + fmtCoins(payout);
+    winDisp.className   = 'slot-win-display show jackpot';
+    showToast('🎰 JACKPOT!  ◈' + fmtCoins(payout), 'win');
+    // Flash winning symbols
+    for (let r = 0; r < 3; r++) {
+      const inner = document.getElementById('slInner' + r);
+      const cells = inner.querySelectorAll('.slot-symbol');
+      const midIdx = cells.length - 2; // centre of 3 visible
+      if (cells[midIdx]) cells[midIdx].classList.add('win-flash');
+    }
+  } else if (won) {
+    winDisp.textContent = '+◈' + fmtCoins(payout);
+    winDisp.className   = 'slot-win-display show win';
+    showToast('WIN  ◈' + fmtCoins(payout), 'win');
+  } else {
+    winDisp.textContent = 'NO WIN';
+    winDisp.className   = 'slot-win-display show lose';
+  }
+
+  // Update stats
+  slSpinCount++;
+  document.getElementById('slSpins').textContent = slSpinCount;
+  if (won && (slBestCents < 0 || payout > slBestCents)) {
+    slBestCents = payout;
+    document.getElementById('slBest').textContent = fmtCoins(payout);
+  }
+
+  addHistoryBadge('slHistory', won, won ? payout : betCents);
+
+  // Auto-spin countdown
+  if (slAutoCount > 0) {
+    slAutoCount--;
+    document.getElementById('slAutoLeft').textContent = slAutoCount > 0 ? slAutoCount : '—';
+    if (slAutoCount === 0) {
+      slSetAuto(0);
+    }
+  }
+
+  slSpinning = false;
+  btn.disabled = false;
+
+  // Continue auto-spin if still going and have balance
+  if (slAutoCount > 0 && balance >= betCents) {
+    slAutoTimer = setTimeout(slSpin, 600);
+  } else if (slAutoCount > 0) {
+    slAutoCount = 0;
+    slSetAuto(0);
+    showToast('AUTO-SPIN STOPPED — INSUFFICIENT FUNDS', 'lose');
+  }
+}
+
+// Determine what symbols appear on each reel based on the server outcome.
+// serverPayout=0 means no win; >0 means win — show matching symbols on centre row.
+function slDetermineReels(outcome, betCents, serverPayout) {
+  // outcome is unused for slots (server just returns won/payout).
+  // We derive symbols entirely from payout to stay in sync with server.
+  const mult = betCents > 0 ? serverPayout / betCents : 0;
+  const reels = [];
+
+  // Map multiplier to the correct symbol for 3-of-a-kind
+  // These thresholds must match the server TIERS table
+  let winSymbol = null;
+  if      (mult >= 49)  winSymbol = '7️⃣';
+  else if (mult >= 24)  winSymbol = '💎';
+  else if (mult >= 9)   winSymbol = '🍒';
+  else if (mult >= 7)   winSymbol = '🍋';
+  else if (mult >= 5)   winSymbol = '🔔';
+  else if (mult >= 4)   winSymbol = '🍇';
+  else if (mult >= 3.5) winSymbol = '⭐';
+  else if (mult >= 2.5) winSymbol = '🍊';
+  // Pair wins: mult is 1.5 (any pair) or 3 (two 7s)
+  else if (mult >= 2.8) {
+    // Two 7️⃣s: two matching + one different on centre row
+    const oddReel = Math.floor(Math.random() * 3);
+    for (let r = 0; r < 3; r++) {
+      const mid = (r === oddReel) ? slPickSymbol(true) : '7️⃣';
+      reels.push([slPickSymbol(), mid, slPickSymbol()]);
+    }
+    return reels;
+  }
+  else if (mult >= 1.4) {
+    // Any pair: two matching symbols + one different
+    const pairSym = slPickSymbol(true);
+    const oddReel = Math.floor(Math.random() * 3);
+    for (let r = 0; r < 3; r++) {
+      const mid = (r === oddReel) ? slPickSymbol(true) : pairSym;
+      reels.push([slPickSymbol(), mid, slPickSymbol()]);
+    }
+    return reels;
+  }
+
+  if (winSymbol) {
+    // Three of a kind on middle row
+    for (let r = 0; r < 3; r++) {
+      reels.push([slPickSymbol(), winSymbol, slPickSymbol()]);
+    }
+  } else {
+    // No win — ensure middle row has no three of a kind
+    let tries = 0;
+    do {
+      reels.length = 0;
+      for (let r = 0; r < 3; r++) {
+        reels.push([slPickSymbol(), slPickSymbol(), slPickSymbol()]);
+      }
+      tries++;
+    } while (
+      reels[0][1] === reels[1][1] && reels[1][1] === reels[2][1] && tries < 30
+    );
+  }
+  return reels;
+}
+
+// Slots are initialised the first time the tab is clicked via switchGame's built-in hook.
+// (slInitDone checked inside switchGame itself — no monkey-patching needed)
+let slInitDone = false;
+
+// ════════════════════════════════════════════════════════════
+//  FALLBACK
+// ════════════════════════════════════════════════════════════
+setTimeout(()=>{
+  if(!fbReady){
+    document.getElementById('loadingScreen').classList.add('hidden');
+    document.getElementById('authScreen').classList.remove('hidden');
+    document.getElementById('authError').textContent='COULD NOT CONNECT TO FIREBASE';
+  }
+},10000);
 </script>
 </body>
 </html>
